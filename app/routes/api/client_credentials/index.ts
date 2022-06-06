@@ -7,7 +7,7 @@
  */
 
 import type { ActionFunction, LoaderFunction } from '@remix-run/node'
-import { ClientCredentialVendingMachine } from '~/lib/ClientCredentialVendingMachine.server'
+import { ClientCredentialVendingMachine } from '~/routes/user/client_credentials.server'
 
 export const loader: LoaderFunction = async ({ request }) => {
   const machine = await ClientCredentialVendingMachine.create(request)
@@ -16,7 +16,6 @@ export const loader: LoaderFunction = async ({ request }) => {
 
 export const action: ActionFunction = async ({ request }) => {
   if (request.method != 'POST') throw new Response(null, { status: 405 })
-
   const [machine, body] = await Promise.all([
     ClientCredentialVendingMachine.create(request),
     request.json(),

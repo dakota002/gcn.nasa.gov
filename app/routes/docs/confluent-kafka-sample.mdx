@@ -1,0 +1,35 @@
+## confluent-kafka
+
+To install [confluent-kafka](https://pypi.org/project/confluent-kafka/):
+
+```sh
+# pip install confluent-kafka  # once upstream packages are deployed
+pip install --extra-index-url https://asd.gsfc.nasa.gov/Leo.Singer/pypi confluent-kafka==1.8.3+bleeding.edge.2
+```
+
+Python sample code:
+
+```python
+from confluent_kafka import Consumer
+from uuid import uuid4
+
+# Fill in client credentials here
+client_id = '...'
+client_secret = '...'
+
+config = {
+    'sasl.oauthbearer.client.id': client_id,
+    'sasl.oauthbearer.client.secret': client_secret,
+    'bootstrap.servers': 'kafka.gcn.nasa.gov',
+    'sasl.oauthbearer.token.endpoint.url': 'https://auth.gcn.nasa.gov/oauth2/token',
+    'sasl.mechanisms': 'OAUTHBEARER',
+    'sasl.oauthbearer.method': 'oidc',
+    'security.protocol': 'sasl_ssl',
+    'group.id': str(uuid4())
+}
+
+consumer = Consumer(config)
+consumer.subscribe(['foobar'])
+for message in consumer.consume():
+    print(message.value())
+```

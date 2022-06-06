@@ -7,6 +7,7 @@
  */
 
 import { useState, useRef } from 'react'
+import type { ChangeEvent } from 'react'
 import type { ModalRef } from '@trussworks/react-uswds'
 import {
   Alert,
@@ -20,11 +21,18 @@ import {
   ModalToggleButton,
   Table,
   TextInput,
+  ValidationChecklist,
+  ValidationItem,
 } from '@trussworks/react-uswds'
 import type { LoaderFunction, MetaFunction } from '@remix-run/node'
 import { useLoaderData } from '@remix-run/react'
 import { CopyableCode } from '~/components/CopyableCode'
-import { ClientCredentialVendingMachine } from '~/lib/ClientCredentialVendingMachine.server'
+import ReCAPTCHA from 'react-google-recaptcha'
+import { ClientCredentialVendingMachine } from './client_credentials.server'
+import moment from 'moment'
+import Tabs from './Tabs'
+import AdcStreamingTab from './adc_streaming_tab'
+import ConfluentKafkaTab from './confluent_kafka_tab'
 
 export const loader: LoaderFunction = async function ({ request }) {
   const machine = await ClientCredentialVendingMachine.create(request)
@@ -39,10 +47,10 @@ export const meta: MetaFunction = () => ({
 
 interface ClientCredentialData {
   name: string
+  created: number
   client_id: string
   client_secret?: string
   scope: string
-  onDelete?: (client_id: string) => void
 }
 
 interface LoaderData {
@@ -52,6 +60,18 @@ interface LoaderData {
 
 interface ClientCredentialProps extends ClientCredentialData {
   onDelete?: (client_id: string) => void
+}
+
+interface Validator {
+  [key: string]: any
+}
+
+interface TabsType {
+  label: string
+  index: number
+  Component: React.FC<{ clientId: string; clientSecret: string }>
+  clientId: string
+  clientSecret: string
 }
 
 function ClientCredential(props: ClientCredentialProps) {
@@ -64,9 +84,12 @@ function ClientCredential(props: ClientCredentialProps) {
     }
   }
 
+  const momentCreated = moment.utc(props.created)
+
   return (
     <tr>
       <td>{props.name}</td>
+      <td title={momentCreated.format()}>{momentCreated.fromNow()}</td>
       <td>{props.scope}</td>
       <td>
         <CopyableCode text={props.client_id} />
@@ -123,13 +146,70 @@ function ClientCredential(props: ClientCredentialProps) {
 }
 
 export default function Index() {
-  const modalRef = useRef<ModalRef>(null)
   const { client_credentials, groups } = useLoaderData() as LoaderData
   const [items, setItems] = useState(client_credentials)
   const defaultName = ''
   const [name, setName] = useState(defaultName)
   const defaultScope = 'gcn.nasa.gov/kafka-public-consumer'
   const [scope, setScope] = useState(defaultScope)
+  const defaultDisableButton = true && process.env.NODE_ENV === 'production'
+  const [disableRequestButton, setDisableButton] =
+    useState(defaultDisableButton)
+  const [validations, setValidations] = useState({ name: false })
+  const siteKey = 'site-key'
+  client_credentials.sort((a, b) => a.created - b.created)
+  const [selectedTab, setSelectedTab] = useState<number>(tabs()[0].index)
+
+  const validateInput = (event: ChangeEvent<HTMLInputElement>): void => {
+    const {
+      target: { value },
+    } = event
+    const updatedValidations: Validator = {}
+    setName(value)
+    Object.keys(validations).forEach((validator) => {
+      updatedValidations[validator] = validate(validator, value)
+    })
+
+    setValidations({ ...validations, ...updatedValidations })
+  }
+
+  function getClientId(): string {
+    return items.sort((a, b) => b.created - a.created)[0].client_id ?? '...'
+  }
+
+  function getClientSecret(): string {
+    return items.sort((a, b) => b.created - a.created)[0].client_secret ?? '...'
+  }
+
+  function tabs(): TabsType[] {
+    return [
+      {
+        label: 'adc-streaming',
+        index: 1,
+        Component: AdcStreamingTab,
+        clientId: getClientId(),
+        clientSecret: getClientSecret(),
+      },
+      {
+        label: 'confluent-kafka',
+        index: 2,
+        Component: ConfluentKafkaTab,
+        clientId: getClientId(),
+        clientSecret: getClientSecret(),
+      },
+    ]
+  }
+
+  function validate(type: string, value: string): boolean {
+    switch (type) {
+      case 'name':
+        return value != null && value != ''
+
+      default:
+        console.warn(`Undefined type validation for: "${type}"`)
+        return false
+    }
+  }
 
   function handleDelete(client_id: string) {
     fetch(`/api/client_credentials/${client_id}`, {
@@ -146,9 +226,7 @@ export default function Index() {
     })
   }
 
-  const handleCreate: React.MouseEventHandler<HTMLButtonElement> = (e) => {
-    modalRef?.current?.toggleModal(e, false)
-
+  function handleCreate() {
     fetch('/api/client_credentials', {
       method: 'post',
       headers: {
@@ -157,9 +235,19 @@ export default function Index() {
       body: JSON.stringify({ name, scope }),
     })
       .then((result) => result.json())
-      .then((item) => setItems([...items, item]))
+      .then((item) => {
+        setItems([item, ...items])
+        setSelectedTab(tabs()[0].index)
+      })
   }
 
+  function onChange(value: any) {
+    if (value) {
+      setDisableButton(false)
+    } else {
+      setDisableButton(true)
+    }
+  }
   return (
     <section>
       <h1>Client Credentials</h1>
@@ -169,16 +257,96 @@ export default function Index() {
           Secret that you can use in script to connect to the GCN Kafka broker.
         </p>
       </div>
-      <p>
-        <ModalToggleButton modalRef={modalRef} opener>
-          Create new client credential
-        </ModalToggleButton>
-      </p>
+      <h3>Create New Client Credential</h3>
+      <section>
+        <div>
+          <div className="usa-prose">
+            <p id="modal-new-description">
+              Choose a name for your new client credential.
+            </p>
+            <p className="text-base">
+              The name should help you remember what you use the client
+              credential for, or where you use it. Examples: “My Laptop”, “Lab
+              Desktop”, “GRB Pipeline”.
+            </p>
+          </div>
+          <Alert
+            type="info"
+            validation
+            heading="Requirements"
+            headingLevel="h4"
+          >
+            <ValidationChecklist id="validate-code">
+              <ValidationItem id="name" isValid={validations.name}>
+                The Name field is required
+              </ValidationItem>
+            </ValidationChecklist>
+          </Alert>
+          <Label htmlFor="name">Name</Label>
+          <TextInput
+            data-focus
+            name="name"
+            id="name"
+            type="text"
+            placeholder="Name"
+            defaultValue={defaultName}
+            onChange={validateInput}
+          />
+          <Label htmlFor="scope">Scope</Label>
+          <Dropdown
+            id="scope"
+            name="scope"
+            defaultValue={defaultScope}
+            onChange={(e) => setScope(e.target.value)}
+            onBlur={(e) => setScope(e.target.value)}
+          >
+            {groups.map((group) => (
+              <option key={group} value={group}>
+                {group}
+              </option>
+            ))}
+          </Dropdown>
+          <br />
+          {process.env.NODE_ENV === 'production' ? (
+            <ReCAPTCHA sitekey={siteKey} onChange={onChange}></ReCAPTCHA>
+          ) : (
+            <div className="usa-prose">
+              <p className="text-base">
+                You are working in a development environment, the ReCaptcha is
+                currently hidden
+              </p>
+            </div>
+          )}
+          <br></br>
+          <Button
+            disabled={disableRequestButton}
+            type="submit"
+            onClick={handleCreate}
+          >
+            Request New Credentials
+          </Button>
+        </div>
+      </section>
+      <div>
+        {items.some((item) => item.client_secret) ? (
+          <div>
+            <br />
+            <Alert
+              type="success"
+              heading="Your new client credential was created."
+            >
+              Make sure that you copy the client secret. It will only be shown
+              once.
+            </Alert>
+          </div>
+        ) : null}
+      </div>
       {items.length > 0 ? (
         <Table>
           <thead>
             <tr>
               <th>Name</th>
+              <th>Created</th>
               <th>Scope</th>
               <th>Client ID</th>
               <th>Client Secret</th>
@@ -196,66 +364,8 @@ export default function Index() {
           </tbody>
         </Table>
       ) : null}
-
-      <Modal
-        id="modal-new"
-        ref={modalRef}
-        aria-labelledby="modal-new-heading"
-        aria-describedby="modal-new-description"
-        renderToPortal={false} // FIXME: https://github.com/trussworks/react-uswds/pull/1890#issuecomment-1023730448
-      >
-        <ModalHeading id="modal-new-heading">
-          Create New Client Credential
-        </ModalHeading>
-        <div className="usa-prose">
-          <p id="modal-new-description">
-            Choose a name for your new client credential.
-          </p>
-          <p className="text-base">
-            The name should help you remember what you use the client credential
-            for, or where you use it. Examples: “My Laptop”, “Lab Desktop”, “GRB
-            Pipeline”.
-          </p>
-        </div>
-        <Label htmlFor="name">Name</Label>
-        <TextInput
-          data-focus
-          name="name"
-          id="name"
-          type="text"
-          placeholder="Name"
-          defaultValue={defaultName}
-          onChange={(e) => setName(e.target.value)}
-        />
-        <Label htmlFor="scope">Scope</Label>
-        <Dropdown
-          id="scope"
-          name="scope"
-          defaultValue={defaultScope}
-          onChange={(e) => setScope(e.target.value)}
-          onBlur={(e) => setScope(e.target.value)}
-        >
-          {groups.map((group) => (
-            <option key={group} value={group}>
-              {group}
-            </option>
-          ))}
-        </Dropdown>
-        <ModalFooter>
-          <Button data-close-modal type="button" onClick={handleCreate}>
-            Create
-          </Button>
-          <ModalToggleButton modalRef={modalRef} closer outline>
-            Cancel
-          </ModalToggleButton>
-        </ModalFooter>
-      </Modal>
-
-      {items.some((item) => item.client_secret) ? (
-        <Alert type="success" heading="Your new client credential was created.">
-          Make sure that you copy the client secret. It will only be shown once.
-        </Alert>
-      ) : null}
+      <h3>Code Samples</h3>
+      <Tabs selectedTab={selectedTab} onClick={setSelectedTab} tabs={tabs()} />
     </section>
   )
 }
