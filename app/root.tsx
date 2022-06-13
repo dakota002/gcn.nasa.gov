@@ -31,9 +31,9 @@ import {
   useTransition,
 } from '@remix-run/react'
 import type {
-  LoaderFunction,
   MetaFunction,
   LinksFunction,
+  DataFunctionArgs,
 } from '@remix-run/node'
 import { GovBanner, GridContainer } from '@trussworks/react-uswds'
 import { Footer } from './components/Footer'
@@ -72,28 +72,20 @@ export const links: LinksFunction = () => [
   })),
 ]
 
-interface LoaderData {
-  email?: string
-  hostname: string
-}
-
-export const loader: LoaderFunction = async function ({ request }) {
+export async function loader({ request }: DataFunctionArgs) {
   const url = new URL(request.url)
-  const result = { hostname: url.hostname }
+  const hostname = url.hostname
+
   const user = await getUser(request)
-  if (user) {
-    return {
-      email: user.email,
-      ...result,
-    }
-  } else {
-    return result
-  }
+  const email = user?.email
+
+  return { hostname, email }
 }
 
 export default function App() {
-  const location = useLocation()
-  const loaderData = useLoaderData<LoaderData>()
+  const { pathname } = useLocation()
+  const { hostname, email } =
+    useLoaderData<Awaited<ReturnType<typeof loader>>>()
   const transition = useTransition()
   const showProgress = useSpinDelay(transition.state !== 'idle')
 
@@ -111,8 +103,8 @@ export default function App() {
         </a>
         {showProgress && <TopBarProgress />}
         <GovBanner />
-        <DevBanner hostname={loaderData.hostname} />
-        <Header pathname={location.pathname} {...loaderData} />
+        <DevBanner hostname={hostname} />
+        <Header pathname={pathname} email={email} />
         <section className="usa-section main-content">
           <GridContainer>
             <Outlet />

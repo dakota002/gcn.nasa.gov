@@ -24,7 +24,7 @@ import {
   ValidationChecklist,
   ValidationItem,
 } from '@trussworks/react-uswds'
-import type { LoaderFunction, MetaFunction } from '@remix-run/node'
+import type { DataFunctionArgs, MetaFunction } from '@remix-run/node'
 import { useLoaderData } from '@remix-run/react'
 import { CopyableCode } from '~/components/CopyableCode'
 import ReCAPTCHA from 'react-google-recaptcha'
@@ -34,7 +34,7 @@ import Tabs from './Tabs'
 import AdcStreamingTab from './adc_streaming_tab'
 import ConfluentKafkaTab from './confluent_kafka_tab'
 
-export const loader: LoaderFunction = async function ({ request }) {
+export async function loader({ request }: DataFunctionArgs) {
   const machine = await ClientCredentialVendingMachine.create(request)
   const client_credentials = await machine.getClientCredentials()
   const groups = machine.groups
@@ -51,11 +51,6 @@ interface ClientCredentialData {
   client_id: string
   client_secret?: string
   scope: string
-}
-
-interface LoaderData {
-  client_credentials: ClientCredentialData[]
-  groups: string[]
 }
 
 interface ClientCredentialProps extends ClientCredentialData {
@@ -146,8 +141,12 @@ function ClientCredential(props: ClientCredentialProps) {
 }
 
 export default function Index() {
-  const { client_credentials, groups } = useLoaderData() as LoaderData
-  const [items, setItems] = useState(client_credentials)
+
+  const modalRef = useRef<ModalRef>(null)
+  const { client_credentials, groups } =
+    useLoaderData<Awaited<ReturnType<typeof loader>>>()
+  const [items, setItems] = useState<ClientCredentialData[]>(client_credentials)
+
   const defaultName = ''
   const [name, setName] = useState(defaultName)
   const defaultScope = 'gcn.nasa.gov/kafka-public-consumer'
@@ -249,7 +248,7 @@ export default function Index() {
     }
   }
   return (
-    <section>
+    <>
       <h1>Client Credentials</h1>
       <div className="usa-prose">
         <p>
