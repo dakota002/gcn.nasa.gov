@@ -141,8 +141,6 @@ function ClientCredential(props: ClientCredentialProps) {
 }
 
 export default function Index() {
-
-  const modalRef = useRef<ModalRef>(null)
   const { client_credentials, groups } =
     useLoaderData<Awaited<ReturnType<typeof loader>>>()
   const [items, setItems] = useState<ClientCredentialData[]>(client_credentials)
@@ -248,7 +246,7 @@ export default function Index() {
     }
   }
   return (
-    <>
+    <section>
       <h1>Client Credentials</h1>
       <div className="usa-prose">
         <p>
