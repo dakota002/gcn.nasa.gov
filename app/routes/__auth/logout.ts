@@ -18,6 +18,7 @@ export const loader: LoaderFunction = async ({ request: { headers, url } }) => {
       return await storage.destroySession(session)
     })(),
   ])
+
   // Determine the Cognito logout URI endpoint
   const auth_endpoint = client.issuer.metadata.authorization_endpoint
   if (!auth_endpoint)

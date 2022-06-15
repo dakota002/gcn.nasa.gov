@@ -16,6 +16,7 @@ export const loader: LoaderFunction = async ({ request }) => {
 
 export const action: ActionFunction = async ({ request }) => {
   if (request.method != 'POST') throw new Response(null, { status: 405 })
+
   const [machine, body] = await Promise.all([
     ClientCredentialVendingMachine.create(request),
     request.json(),

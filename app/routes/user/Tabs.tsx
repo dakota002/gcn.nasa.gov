@@ -1,49 +1,31 @@
 import type { FC } from 'react'
 
-type TabsProps = {
+type TabsContainerProps = {
   tabs: {
     label: string
     index: number
-    Component: FC<{ index: number; clientId: string; clientSecret: string }>
-    clientId: string
-    clientSecret: string
+    Component: React.ReactNode
   }[]
   selectedTab: number
   onClick: (index: number) => void
-  orientation?: 'horizontal' | 'vertical'
-  className?: string
-  clientId?: string
-  clientSecret?: string
 }
 
 /**
  * Avalible Props
- * @param className string
- * @param tab Array of object
+ * @param tabs Array of object
  * @param selectedTab number
  * @param onClick Function to set the active tab
- * @param orientation Tab orientation Vertical | Horizontal
  */
-let Tabs: FC<TabsProps> = ({
-  className = 'tabs-component',
+let Tabs: FC<TabsContainerProps> = ({
   tabs = [],
   selectedTab = 0,
   onClick,
-  orientation = 'horizontal',
-  clientId = '',
-  clientSecret = '',
 }) => {
   const Panel = tabs && tabs.find((tab) => tab.index === selectedTab)
-  clientId = Panel?.clientId ?? ''
-  clientSecret = Panel?.clientSecret ?? ''
 
   return (
-    <div
-      className={
-        orientation === 'vertical' ? className + ' vertical' : className
-      }
-    >
-      <div role="tablist" aria-orientation={orientation}>
+    <div className="tabs-component">
+      <div role="tablist">
         {tabs.map((tab) => (
           <button
             className={selectedTab === tab.index ? 'active' : ''}
@@ -65,13 +47,7 @@ let Tabs: FC<TabsProps> = ({
         aria-labelledby={`btn-${selectedTab}`}
         id={`tabpanel-${selectedTab}`}
       >
-        {Panel && (
-          <Panel.Component
-            index={selectedTab}
-            clientId={clientId}
-            clientSecret={clientSecret}
-          />
-        )}
+        {Panel ? Panel.Component : null}
       </div>
     </div>
   )

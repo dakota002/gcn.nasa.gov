@@ -61,12 +61,10 @@ interface Validator {
   [key: string]: any
 }
 
-interface TabsType {
+interface CodeDemoTabsType {
   label: string
   index: number
-  Component: React.FC<{ clientId: string; clientSecret: string }>
-  clientId: string
-  clientSecret: string
+  Component: React.ReactNode
 }
 
 function ClientCredential(props: ClientCredentialProps) {
@@ -171,28 +169,32 @@ export default function Index() {
   }
 
   function getClientId(): string {
-    return items.sort((a, b) => b.created - a.created)[0].client_id ?? '...'
+    return items.sort((a, b) => b.created - a.created)[0]?.client_id ?? '...'
   }
 
   function getClientSecret(): string {
-    return items.sort((a, b) => b.created - a.created)[0].client_secret ?? '...'
+    return (
+      items.sort((a, b) => b.created - a.created)[0]?.client_secret ?? '...'
+    )
   }
 
-  function tabs(): TabsType[] {
+  function tabs(): CodeDemoTabsType[] {
     return [
       {
         label: 'adc-streaming',
         index: 1,
-        Component: AdcStreamingTab,
-        clientId: getClientId(),
-        clientSecret: getClientSecret(),
+        Component: AdcStreamingTab({
+          clientId: getClientId(),
+          clientSecret: getClientSecret(),
+        }),
       },
       {
         label: 'confluent-kafka',
         index: 2,
-        Component: ConfluentKafkaTab,
-        clientId: getClientId(),
-        clientSecret: getClientSecret(),
+        Component: ConfluentKafkaTab({
+          clientId: getClientId(),
+          clientSecret: getClientSecret(),
+        }),
       },
     ]
   }
@@ -224,6 +226,13 @@ export default function Index() {
   }
 
   function handleCreate() {
+    if (process.env.NODE_ENV === 'production') {
+      var validationResponse = grecaptcha.getResponse()
+      if (validationResponse === '') {
+        // TODO: throw an error or something, for now return
+        return
+      }
+    }
     fetch('/api/client_credentials', {
       method: 'post',
       headers: {
