@@ -20,9 +20,9 @@
     "prepare": "run-p prepare:*"
   },
   "dependencies": {
-    "@architect/functions": "^5.0.2",
-    "@aws-sdk/client-cognito-identity-provider": "^3.164.0",
-    "@aws-sdk/client-sesv2": "^3.154.0",
+    "@architect/functions": "^5.2.2",
+    "@aws-sdk/client-cognito-identity-provider": "^3.180.0",
+    "@aws-sdk/client-sesv2": "^3.179.0",
     "@octokit/rest": "^19.0.4",
     "@remix-run/architect": "^1.6.8",
     "@remix-run/node": "^1.6.8",
@@ -46,7 +46,7 @@
     "ts-dedent": "^2.2.0"
   },
   "devDependencies": {
-    "@architect/architect": "^10.4.1",
+    "@architect/architect": "^10.6.0",
     "@remix-run/dev": "^1.6.8",
     "@remix-run/eslint-config": "^1.6.8",
     "@types/architect__functions": "^3.13.6",
@@ -58,8 +58,8 @@
     "@types/react-dom": "^17.0.17",
     "@types/react-google-recaptcha": "^2.1.5",
     "@types/react-tag-autocomplete": "^6.1.1",
-    "autoprefixer": "^10.4.8",
-    "eslint": "^8.23.0",
+    "autoprefixer": "^10.4.12",
+    "eslint": "^8.24.0",
     "eslint-config-prettier": "^8.3.0",
     "generate-password": "^1.7.0",
     "gulp": "^4.0.2",
@@ -80,8 +80,8 @@
     "rehype-highlight": "^5.0.2",
     "rehype-slug": "^5.0.1",
     "remark-gfm": "^3.0.1",
-    "sass": "^1.54.5",
-    "typescript": "^4.8.2",
+    "sass": "^1.55.0",
+    "typescript": "^4.8.3",
     "uswds": "2.13.3"
   },
   "engines": {
