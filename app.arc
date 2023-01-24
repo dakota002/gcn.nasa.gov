@@ -68,3 +68,4 @@ lambdaMayNotWriteToStaticBucket  # the Lambda function should not be able to mod
 manualStaticBucketPolicy  # Mission Cloud Platform requires bucket policies to be set manually
 permissionsBoundary  # configure IAM Role permissions boundaries required by Mission Cloud Platform
 sendEmailPermissions  # Grant the Lambda function permission to send email.
+emailIncoming  # Add a custom Lambda to process events for incoming emails
