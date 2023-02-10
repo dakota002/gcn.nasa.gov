@@ -8,10 +8,39 @@
 
 // Add a custom Lambda to process events for incoming emails
 export const set = {
-  customLambdas: () => {
+  events() {
     return {
-      name: 'gcn-circular-ingestion',
-      src: './email-incoming/',
+      name: 'email-incoming',
+      src: 'email-incoming',
+      required: true,
     }
+  },
+}
+
+export const deploy = {
+  start({ cloudformation }) {
+    const { DOMAIN } =
+      cloudformation.Resources.EmailIncomingEventLambda.Properties.Environment
+        .Variables
+    Object.assign(cloudformation.Resources, {
+      EmailIncomingReceiptRuleSet: { Type: 'AWS::SES::ReceiptRuleSet' },
+      EmailIncomingReceiptRule: {
+        Type: 'AWS::SES::ReceiptRule',
+        Properties: {
+          RuleSetName: { Ref: 'EmailIncomingReceiptRuleSet' },
+          Enabled: true,
+          Recipients: [`circulars@${DOMAIN}`],
+          Actions: [
+            {
+              SNSAction: {
+                Encoding: 'Base64',
+                TopicArn: { Ref: 'EmailIncomingEventTopic' },
+              },
+            },
+          ],
+        },
+      },
+    })
+    return cloudformation
   },
 }

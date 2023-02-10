@@ -10,12 +10,12 @@ import {
   ListUsersInGroupCommand,
   CognitoIdentityProviderClient,
 } from '@aws-sdk/client-cognito-identity-provider'
-import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3'
+//import { S3Client } from '@aws-sdk/client-s3'
 import { DynamoDBAutoIncrement } from '@nasa-gcn/dynamodb-autoincrement'
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb'
 import { DynamoDBDocument } from '@aws-sdk/lib-dynamodb'
 import { SendEmailCommand, SESv2Client } from '@aws-sdk/client-sesv2'
-import type { S3Event, S3EventRecord } from 'aws-lambda'
+import type { SNSEvent, SNSEventRecord } from 'aws-lambda'
 
 import type { Source } from 'mailparser'
 import { simpleParser } from 'mailparser'
@@ -29,7 +29,7 @@ import {
 import { tables } from '@architect/functions'
 import { extractAttributeRequired, extractAttribute } from '~/lib/cognito'
 
-const s3 = new S3Client({})
+//const s3 = new S3Client({})
 const client = new CognitoIdentityProviderClient({})
 const sesClient = new SESv2Client({})
 const doc = DynamoDBDocument.from(new DynamoDBClient({}))
@@ -42,19 +42,16 @@ const isRejected = (
 ): input is PromiseRejectedResult => input.status === 'rejected'
 
 async function handleRecord(
-  record: S3EventRecord,
+  record: SNSEventRecord,
   autoIncrement: DynamoDBAutoIncrement
 ) {
   // Get data from S3
-  const object = await s3.send(
-    new GetObjectCommand({
-      Bucket: record.s3.bucket.name,
-      Key: decodeURIComponent(record.s3.object.key.replace(/\+/g, ' ')),
-    })
-  )
-  if (!object.Body) throw new Error('S3 object has no body')
+  const temp = JSON.parse(record.Sns.Message)
+  console.log(Object.keys(temp))
+  if (!temp.mail) throw new Error('Object has no body')
 
-  const parsed = await simpleParser(object.Body as Source)
+  const parsed = await simpleParser(temp as Source)
+  //console.log(parsed)
   if (!parsed.from) throw new Error('S3 object has no sender')
 
   const userEmail = parsed.from.value[0].address
@@ -123,7 +120,8 @@ async function handleRecord(
   )
 }
 
-export async function handler(event: S3Event) {
+export async function handler(event: SNSEvent) {
+  console.log(event.Records[0].Sns.Message)
   // Get tables for autoincrement
   const db = await tables()
   const tableName = db.name('circulars')
@@ -141,9 +139,10 @@ export async function handler(event: S3Event) {
     tableAttributeName: 'circularId',
     initialValue: 1,
   })
-  const handlerPromises = event.Records.filter(
-    (record) => record.eventName == 'ObjectCreated:Put'
-  ).map((record) => handleRecord(record, autoIncrement))
+
+  const handlerPromises = event.Records.map((record) =>
+    handleRecord(record, autoIncrement)
+  )
   const results = await Promise.allSettled(handlerPromises)
   const rejections = results.filter(isRejected).map(({ reason }) => reason)
   if (rejections.length) throw rejections
