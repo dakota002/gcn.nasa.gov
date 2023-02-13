@@ -10,6 +10,7 @@ import {
   ListUsersInGroupCommand,
   CognitoIdentityProviderClient,
 } from '@aws-sdk/client-cognito-identity-provider'
+import type { DynamoDB } from '@aws-sdk/client-dynamodb'
 import { DynamoDBAutoIncrement } from '@nasa-gcn/dynamodb-autoincrement'
 import type { DynamoDBDocument } from '@aws-sdk/lib-dynamodb'
 import { SendEmailCommand, SESv2Client } from '@aws-sdk/client-sesv2'
@@ -124,6 +125,9 @@ export async function handler(event: SNSEvent) {
   if (!tableName || !counterTableName) {
     throw new Error('Could not find tables')
   }
+  const dangerously =
+    (await (db._db as unknown as DynamoDB).config.endpoint?.())?.hostname ==
+    'localhost'
 
   const autoIncrement = new DynamoDBAutoIncrement({
     doc,
@@ -133,6 +137,7 @@ export async function handler(event: SNSEvent) {
     tableName: tableName,
     tableAttributeName: 'circularId',
     initialValue: 1,
+    dangerously,
   })
 
   const handlerPromises = event.Records.map((record) =>
