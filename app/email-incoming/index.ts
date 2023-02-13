@@ -10,14 +10,11 @@ import {
   ListUsersInGroupCommand,
   CognitoIdentityProviderClient,
 } from '@aws-sdk/client-cognito-identity-provider'
-//import { S3Client } from '@aws-sdk/client-s3'
 import { DynamoDBAutoIncrement } from '@nasa-gcn/dynamodb-autoincrement'
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb'
-import { DynamoDBDocument } from '@aws-sdk/lib-dynamodb'
+import type { DynamoDBDocument } from '@aws-sdk/lib-dynamodb'
 import { SendEmailCommand, SESv2Client } from '@aws-sdk/client-sesv2'
 import type { SNSEvent, SNSEventRecord } from 'aws-lambda'
 
-import type { Source } from 'mailparser'
 import { simpleParser } from 'mailparser'
 
 import {
@@ -29,10 +26,8 @@ import {
 import { tables } from '@architect/functions'
 import { extractAttributeRequired, extractAttribute } from '~/lib/cognito'
 
-//const s3 = new S3Client({})
 const client = new CognitoIdentityProviderClient({})
 const sesClient = new SESv2Client({})
-const doc = DynamoDBDocument.from(new DynamoDBClient({}))
 
 const domain = process.env.DOMAIN
 
@@ -46,13 +41,13 @@ async function handleRecord(
   autoIncrement: DynamoDBAutoIncrement
 ) {
   // Get data from S3
-  const temp = JSON.parse(record.Sns.Message)
-  console.log(Object.keys(temp))
-  if (!temp.mail) throw new Error('Object has no body')
+  const message = JSON.parse(record.Sns.Message)
+  if (!message.mail) throw new Error('Object has no body')
 
-  const parsed = await simpleParser(temp as Source)
-  //console.log(parsed)
-  if (!parsed.from) throw new Error('S3 object has no sender')
+  const parsed = await simpleParser(
+    Buffer.from(message.content, 'base64').toString()
+  )
+  if (!parsed.from) throw new Error('Email has no sender')
 
   const userEmail = parsed.from.value[0].address
   if (!userEmail)
@@ -121,9 +116,9 @@ async function handleRecord(
 }
 
 export async function handler(event: SNSEvent) {
-  console.log(event.Records[0].Sns.Message)
   // Get tables for autoincrement
   const db = await tables()
+  const doc = db._doc as unknown as DynamoDBDocument
   const tableName = db.name('circulars')
   const counterTableName = db.name('auto_increment_metadata')
   if (!tableName || !counterTableName) {
