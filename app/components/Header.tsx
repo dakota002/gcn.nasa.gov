@@ -16,7 +16,7 @@ import {
 } from '@trussworks/react-uswds'
 import { useState } from 'react'
 
-import { useEmail } from '~/root'
+import { useEmail, useFeature } from '~/root'
 
 import logo from '~/img/logo.svg'
 
@@ -25,6 +25,7 @@ export function Header() {
   const { pathname } = useLocation()
   const [expanded, setExpanded] = useState(false)
   const [userMenuIsOpen, setUserMenuIsOpen] = useState(false)
+  const [noticeMenuIsOpen, setNoticeMenuIsOpen] = useState(false)
   const onClick = () => setExpanded((prvExpanded) => !prvExpanded)
 
   const pathMatches = (path: string) =>
@@ -50,9 +51,43 @@ export function Header() {
               <NavLink className="usa-nav__link" to="/missions" key="/missions">
                 Missions
               </NavLink>,
-              <NavLink className="usa-nav__link" to="/notices" key="/notices">
-                Notices
-              </NavLink>,
+              useFeature('SCHEMA') ? (
+                <>
+                  <NavDropDownButton
+                    className={pathMatches('/notices') ? 'active' : undefined}
+                    type="button"
+                    key="notices"
+                    label="Notices"
+                    isOpen={noticeMenuIsOpen}
+                    onToggle={() => setNoticeMenuIsOpen(!noticeMenuIsOpen)}
+                    menuId="notices"
+                  />
+                  <Menu
+                    id="notices"
+                    isOpen={noticeMenuIsOpen}
+                    items={[
+                      <Link
+                        key="notices"
+                        to="/notices"
+                        onClick={() => setNoticeMenuIsOpen(!noticeMenuIsOpen)}
+                      >
+                        Notice References
+                      </Link>,
+                      <Link
+                        key="schema"
+                        to="/schema-browser"
+                        onClick={() => setNoticeMenuIsOpen(!noticeMenuIsOpen)}
+                      >
+                        Notice Schemas
+                      </Link>,
+                    ]}
+                  />
+                </>
+              ) : (
+                <NavLink className="usa-nav__link" to="/notices" key="/notices">
+                  Notices
+                </NavLink>
+              ),
               <NavLink
                 className="usa-nav__link"
                 to="/circulars"

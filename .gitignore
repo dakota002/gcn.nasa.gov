@@ -19,3 +19,4 @@ sam.yaml
 
 .env
 .eslintcache
+.schemaTree.json
