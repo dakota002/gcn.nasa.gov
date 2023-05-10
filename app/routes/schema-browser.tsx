@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useLoaderData } from '@remix-run/react'
-import { Icon } from '@trussworks/react-uswds'
+import { GridContainer, Icon } from '@trussworks/react-uswds'
 import { useState } from 'react'
 import { json } from 'react-router'
 
@@ -12,11 +12,11 @@ import {
 
 // Github treeitem
 type TreeItem = {
-  path: string //'notices'
-  mode?: string // '040000'
-  type: string //'tree' | 'blob' // 'tree'
-  sha: string // '27892ea22271447154d351967576be8502d80691'
-  url: string // 'https://api.github.com/repos/nasa-gcn/gcn-schema/git/trees/27892ea22271447154d351967576be8502d80691'
+  path: string
+  mode?: string
+  type: string
+  sha: string
+  url: string
   tree?: TreeItem[]
   name?: string
 }
@@ -28,14 +28,6 @@ type SchemaTreeItem = {
   children: SchemaTreeItem[]
 }
 
-// A valid url with one of the following hashes:
-// Tree hashes:
-// gcn:         71c01cb0e448ca44730b3ada34a50615cf46c6bb
-// gcn/notices: 27892ea22271447154d351967576be8502d80691
-//    - core:   34f958f1988d4d547bc1f05ed7d74cc76436b603
-// etc...
-// like: https://api.github.com/repos/nasa-gcn/gcn-schema/git/trees/27892ea22271447154d351967576be8502d80691
-// as first URL and it will build the whole thing
 async function treeLoader(url: string, schemaPath?: string) {
   const GITHUB_API_TOKEN = getEnvOrDieInProduction('GITHUB_API_ACCESS')
   let schemaTree: TreeItem = await (
@@ -52,7 +44,7 @@ async function treeLoader(url: string, schemaPath?: string) {
       const pathNodeName = [schemaPath ?? 'gcn', item.path].join('/')
       if (item.type == 'tree') {
         const results = await treeLoader(item.url, pathNodeName)
-        item.tree = results // await (await fetch(item.url)).json()
+        item.tree = results
       } else {
         item.name = pathNodeName
       }
@@ -81,9 +73,8 @@ function buildSchemaTreeItem(
 export async function loader() {
   if (!feature('SCHEMA')) throw new Response(null, { status: 404 })
 
-  // if no cached tree (using localDevDataTree for test),
   const dataTree = await treeLoader(
-    'https://api.github.com/repos/nasa-gcn/gcn-schema/git/trees/06e3fe86a8e583af86d2fbba03edb833765c3cb8'
+    'https://api.github.com/repos/nasa-gcn/gcn-schema/git/trees/9b2052c1b784cb11fa1e6b32ff337023d5712512'
   )
 
   const schemaData: SchemaTreeItem[] = dataTree // localDevDataTree
@@ -105,14 +96,16 @@ export default function Schema() {
     .map(RenderSchemaTreeItem)
 
   return (
-    <div className="grid-row grid-gap">
-      <div className="desktop:grid-col-3">
-        <SideNav items={items} />
+    <GridContainer className="usa-section">
+      <div className="grid-row grid-gap">
+        <div className="desktop:grid-col-3">
+          <SideNav items={items} />
+        </div>
+        <div className="desktop:grid-col-9">
+          <Outlet />
+        </div>
       </div>
-      <div className="desktop:grid-col-9">
-        <Outlet />
-      </div>
-    </div>
+    </GridContainer>
   )
 }
 

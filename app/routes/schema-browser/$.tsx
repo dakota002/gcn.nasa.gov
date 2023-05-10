@@ -3,11 +3,8 @@ import { Link, useLoaderData } from '@remix-run/react'
 import { Table } from '@trussworks/react-uswds'
 
 import { Highlight } from '~/components/Highlight'
-import type {
-  ReferencedSchema,
-  Schema,
-} from '~/components/SchemaBrowserElements'
-import { ReferencedElementRow } from '~/components/SchemaBrowserElements'
+import type { Schema, SchemaProperty } from '~/components/SchemaBrowserElements'
+import { ReferencedElementTable } from '~/components/SchemaBrowserElements'
 
 export async function loader({ params: { '*': path } }: DataFunctionArgs) {
   if (!path) throw new Response('schemaName must be defined', { status: 400 })
@@ -93,19 +90,7 @@ export default function () {
             </Link>{' '}
             for more information.
           </p>
-          <Table>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Description</th>
-              </tr>
-            </thead>
-            <tbody>
-              {result.allOf.map((item: ReferencedSchema) => (
-                <ReferencedElementRow item={item} key={item.$ref} />
-              ))}
-            </tbody>
-          </Table>
+          <ReferencedElementTable items={result.allOf} />
         </>
       )}
 
@@ -123,19 +108,7 @@ export default function () {
             </Link>{' '}
             for more information.
           </p>
-          <Table>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Description</th>
-              </tr>
-            </thead>
-            <tbody>
-              {result.anyOf.map((item: ReferencedSchema) => (
-                <ReferencedElementRow item={item} key={item.$ref} />
-              ))}
-            </tbody>
-          </Table>
+          <ReferencedElementTable items={result.anyOf} />
         </>
       )}
 
@@ -153,26 +126,14 @@ export default function () {
             </Link>{' '}
             for more information.
           </p>
-          <Table>
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Description</th>
-              </tr>
-            </thead>
-            <tbody>
-              {result.oneOf.map((item: ReferencedSchema) => (
-                <ReferencedElementRow item={item} key={item.$ref} />
-              ))}
-            </tbody>
-          </Table>
+          <ReferencedElementTable items={result.oneOf} />
         </>
       )}
 
       {result.$defs && (
         <>
           <h3>Locally defined sub-schemas</h3>
-          <Table>
+          <Table fullWidth>
             <thead>
               <tr>
                 <th>Name</th>
@@ -233,9 +194,10 @@ function formatFieldName(name: string, requiredProps?: string[]) {
   return formattedName
 }
 
-function formatFieldType(item: any): string {
-  if (item['type']) return item['type']
-  if (item['enum']) return 'enum'
+function formatFieldType(item: SchemaProperty): string {
+  if (item.type) return item.type
+  if (item.enum) return 'enum'
+  if (item.$ref) return item.$ref.split('/').slice(-1)[0]
   return ''
 }
 

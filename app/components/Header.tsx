@@ -78,7 +78,7 @@ export function Header() {
                         to="/schema-browser"
                         onClick={() => setNoticeMenuIsOpen(!noticeMenuIsOpen)}
                       >
-                        Notice Schemas
+                        Schema Browser
                       </Link>,
                     ]}
                   />
