@@ -5,6 +5,7 @@ import { useState } from 'react'
 export type ReferencedSchema = {
   $ref: string
   type: string
+  schema?: Schema
 }
 
 export type SchemaProperty = {
@@ -29,7 +30,7 @@ export type Schema = {
 }
 
 function ReferencedElementRow({ item }: { item: ReferencedSchema }) {
-  const [showHiddenRow, toggleHiddenRow] = useState(true)
+  const [showHiddenRow, toggleHiddenRow] = useState(false)
   const locallyDefined = item.$ref?.startsWith('#')
 
   return (
@@ -54,10 +55,20 @@ function ReferencedElementRow({ item }: { item: ReferencedSchema }) {
           </>
         )}
       </tr>
-      {!locallyDefined && (
-        <tr hidden={showHiddenRow}>
-          <td>Put the content of the schema here</td>
-          <td></td>
+      {!locallyDefined && item.schema && showHiddenRow && (
+        <tr>
+          <td colSpan={2}>
+            <Table fullWidth>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Type</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <SchemaPropertiesTableBody schema={item.schema} />
+            </Table>
+          </td>
         </tr>
       )}
     </>
@@ -86,6 +97,45 @@ export function ReferencedElementTable({
   )
 }
 
+export function SchemaPropertiesTableBody({ schema }: { schema: Schema }) {
+  return (
+    <>
+      {schema.properties &&
+        Object.keys(schema.properties).map((itemKey) => (
+          <tr key={itemKey}>
+            <th scope="row">{formatFieldName(itemKey, schema.required)}</th>
+            <td>
+              {schema.properties && formatFieldType(schema.properties[itemKey])}
+            </td>
+            <td>
+              {(schema.properties && schema.properties[itemKey].description) ??
+                ''}
+              {schema.properties && schema.properties[itemKey].enum && (
+                <>
+                  <br />
+                  Options: {schema.properties[itemKey].enum?.join(', ')}
+                </>
+              )}
+            </td>
+          </tr>
+        ))}
+    </>
+  )
+}
+
 function formatLinkString(schemaLinkString: string) {
   return schemaLinkString.replace('schema', 'schema-browser')
+}
+
+function formatFieldName(name: string, requiredProps?: string[]) {
+  let formattedName = name
+  if (requiredProps && requiredProps.includes(name)) formattedName += '*'
+  return formattedName
+}
+
+function formatFieldType(item: SchemaProperty): string {
+  if (item.type) return item.type
+  if (item.enum) return 'enum'
+  if (item.$ref) return item.$ref.split('/').slice(-1)[0]
+  return ''
 }

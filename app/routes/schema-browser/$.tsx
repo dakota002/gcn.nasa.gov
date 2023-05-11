@@ -1,7 +1,15 @@
+/*!
+ * Copyright © 2022 United States Government as represented by the Administrator
+ * of the National Aeronautics and Space Administration. No copyright is claimed
+ * in the United States under Title 17, U.S. Code. All Other Rights Reserved.
+ *
+ * SPDX-License-Identifier: NASA-1.3
+ */
 import type { DataFunctionArgs } from '@remix-run/node'
 import { Link, useLoaderData } from '@remix-run/react'
 import { Table } from '@trussworks/react-uswds'
 
+import { loadJson } from '../../lib/schema-data'
 import { Highlight } from '~/components/Highlight'
 import type { Schema, SchemaProperty } from '~/components/SchemaBrowserElements'
 import { ReferencedElementTable } from '~/components/SchemaBrowserElements'
@@ -9,20 +17,13 @@ import { ReferencedElementTable } from '~/components/SchemaBrowserElements'
 export async function loader({ params: { '*': path } }: DataFunctionArgs) {
   if (!path) throw new Response('schemaName must be defined', { status: 400 })
   let result: Schema
-  if (!path.includes('.schema.json')) {
-    result = { title: path, description: path, type: 'dir' }
-    return {
-      path,
-      result,
-      isTree: true,
-      exampleJSON: null,
-    }
-  }
-  result = await getJSONFromGithub(path)
+  if (!path.includes('.schema.json'))
+    throw new Response('Only schema paths allowed', { status: 400 })
+  result = await loadJson(path)
   const examplePath = path.replace('.schema.', '.example.')
   let exampleJSON
   try {
-    exampleJSON = await getJSONFromGithub(examplePath)
+    exampleJSON = await loadJson(examplePath)
   } catch (error) {
     console.log(`No example for ${path}`)
   }
@@ -31,10 +32,8 @@ export async function loader({ params: { '*': path } }: DataFunctionArgs) {
 }
 
 export default function () {
-  const { path, result, isTree, exampleJSON } = useLoaderData<typeof loader>()
-  return isTree ? (
-    <>Placeholder</>
-  ) : (
+  const { path, result, exampleJSON } = useLoaderData<typeof loader>()
+  return (
     <>
       <h1>{result.title ?? path}</h1>
       <p>{result.description}</p>
@@ -199,12 +198,4 @@ function formatFieldType(item: SchemaProperty): string {
   if (item.enum) return 'enum'
   if (item.$ref) return item.$ref.split('/').slice(-1)[0]
   return ''
-}
-
-async function getJSONFromGithub(path: string) {
-  return await (
-    await fetch(
-      `https://raw.githubusercontent.com/nasa-gcn/gcn-schema/main/${path}`
-    )
-  ).json()
 }

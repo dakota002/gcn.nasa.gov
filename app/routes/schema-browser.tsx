@@ -1,97 +1,51 @@
+/*!
+ * Copyright © 2022 United States Government as represented by the Administrator
+ * of the National Aeronautics and Space Administration. No copyright is claimed
+ * in the United States under Title 17, U.S. Code. All Other Rights Reserved.
+ *
+ * SPDX-License-Identifier: NASA-1.3
+ */
 import { NavLink, Outlet, useLoaderData } from '@remix-run/react'
 import { GridContainer, Icon } from '@trussworks/react-uswds'
+import dirTree from 'directory-tree'
 import { useState } from 'react'
 import { json } from 'react-router'
 
 import { SideNav, SideNavSub } from '~/components/SideNav'
-import { feature, getEnvOrDieInProduction, getOrigin } from '~/lib/env.server'
+import { feature, getOrigin } from '~/lib/env.server'
 import {
   getCanonicalUrlHeaders,
   publicStaticCacheControlHeaders,
 } from '~/lib/headers.server'
 
-// Github treeitem
-type TreeItem = {
-  path: string
-  mode?: string
-  type: string
-  sha: string
-  url: string
-  tree?: TreeItem[]
-  name?: string
-}
-
 // Schema treeItem
 type SchemaTreeItem = {
   name: string
   path: string
-  children: SchemaTreeItem[]
-}
-
-async function treeLoader(url: string, schemaPath?: string) {
-  const GITHUB_API_TOKEN = getEnvOrDieInProduction('GITHUB_API_ACCESS')
-  let schemaTree: TreeItem = await (
-    await fetch(url, {
-      headers: {
-        Accept: 'application/vnd.github+json',
-        Authorization: `Bearer ${GITHUB_API_TOKEN}`,
-      },
-    })
-  ).json()
-
-  if (schemaTree.tree) {
-    for (const item of schemaTree.tree) {
-      const pathNodeName = [schemaPath ?? 'gcn', item.path].join('/')
-      if (item.type == 'tree') {
-        const results = await treeLoader(item.url, pathNodeName)
-        item.tree = results
-      } else {
-        item.name = pathNodeName
-      }
-    }
-  }
-  return schemaTree.tree ?? []
-}
-
-function buildSchemaTreeItem(
-  item: TreeItem,
-  parentPath: string
-): SchemaTreeItem {
-  const path = parentPath ? `${parentPath}/${item.path}` : item.path
-  const name = item.path ?? path
-  const children = item.tree
-    ? item.tree.map((child) => buildSchemaTreeItem(child, path))
-    : []
-
-  return {
-    name,
-    path,
-    children,
-  }
+  children?: SchemaTreeItem[]
 }
 
 export async function loader() {
   if (!feature('SCHEMA')) throw new Response(null, { status: 404 })
-
-  const dataTree = await treeLoader(
-    'https://api.github.com/repos/nasa-gcn/gcn-schema/git/trees/9b2052c1b784cb11fa1e6b32ff337023d5712512'
+  const localDataTree = dirTree(
+    '../../node_modules/@nasa-gcn/schema/gcn/notices'
   )
 
-  const schemaData: SchemaTreeItem[] = dataTree // localDevDataTree
-    .filter((item) => item.type === 'tree')
-    .map((item): SchemaTreeItem => buildSchemaTreeItem(item, 'gcn'))
-
-  return json(schemaData, {
-    headers: {
-      ...publicStaticCacheControlHeaders,
-      ...getCanonicalUrlHeaders(new URL(`/schema-browser/`, getOrigin())),
-    },
-  })
+  return json(
+    { localDataTree },
+    {
+      headers: {
+        ...publicStaticCacheControlHeaders,
+        ...getCanonicalUrlHeaders(new URL(`/schema-browser/`, getOrigin())),
+      },
+    }
+  )
 }
 
 export default function Schema() {
-  const schemaData = useLoaderData<typeof loader>()
-  const items: React.ReactNode[] = (schemaData as SchemaTreeItem[])
+  const { localDataTree } = useLoaderData<typeof loader>()
+
+  const items: React.ReactNode[] = ([localDataTree] as SchemaTreeItem[])
     .filter((x) => !x.name.includes('.example.json'))
     .map(RenderSchemaTreeItem)
 
@@ -110,7 +64,7 @@ export default function Schema() {
 }
 
 function filterOutExampleChildren(childrenArray: SchemaTreeItem[]) {
-  return childrenArray.filter(
+  return childrenArray?.filter(
     (childItem) => !childItem.name.includes('.example.json')
   )
 }
@@ -119,10 +73,11 @@ function renderNavLink(
   item: SchemaTreeItem,
   onClick?: () => void
 ): React.ReactNode {
+  const path = formatPath(item.path)
   return (
     <NavLink
-      key={item.path}
-      to={item.path}
+      key={path}
+      to={path}
       onClick={(e) => {
         if (onClick) {
           e.preventDefault()
@@ -131,15 +86,15 @@ function renderNavLink(
       }}
     >
       <span className="display-flex flex-align-center">
-        {item.children.length > 0 && (
+        {item.children && item.children.length > 0 && (
           <span className="margin-top-05 padding-right-05">
             <Icon.FolderOpen />
           </span>
         )}
         <span>{item.name}</span>
         <small className="margin-left-auto">
-          {filterOutExampleChildren(item.children).length > 0
-            ? filterOutExampleChildren(item.children).length
+          {filterOutExampleChildren(item.children ?? []).length > 0
+            ? filterOutExampleChildren(item.children ?? []).length
             : ''}
         </small>
       </span>
@@ -150,7 +105,7 @@ function renderNavLink(
 function RenderSchemaTreeItem(item: SchemaTreeItem) {
   const [showChildren, toggleShowChildren] = useState(false)
 
-  if (item.children.length === 0) {
+  if (!item.children || item.children.length === 0) {
     return renderNavLink(item)
   }
 
@@ -168,10 +123,16 @@ function RenderSchemaTreeItem(item: SchemaTreeItem) {
         toggleShowChildren(!showChildren)
       })}
       <SideNavSub
-        base={item.path}
+        base={formatPath(item.path)}
         items={childNodes}
         isVisible={showChildren}
       />
     </>
   )
+}
+
+function formatPath(path: string) {
+  return path
+    .replaceAll('\\', '/')
+    .replace('node_modules/@nasa-gcn/schema', 'schema-browser')
 }
