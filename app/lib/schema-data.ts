@@ -8,7 +8,10 @@
 import { readFile } from 'fs/promises'
 import { dirname, extname, join } from 'path'
 
-import type { Schema } from '~/components/SchemaBrowserElements'
+import type {
+  ReferencedSchema,
+  Schema,
+} from '~/components/SchemaBrowserElements'
 
 function isErrnoException(e: unknown): e is NodeJS.ErrnoException {
   return e instanceof Error && 'code' in e && 'errno' in e
@@ -30,32 +33,13 @@ export async function loadJson(filePath: string): Promise<Schema> {
     )
 
     if (body.allOf?.find((x) => x.$ref)) {
-      //"/schema/gcn/notices/core/Event.schema.json"
-      body.allOf.forEach((x) => {
-        const subSchemaPath = join(
-          dirname(require.resolve('@nasa-gcn/schema')),
-          x.$ref.replace('schema/', '')
-        )
-
-        console.log(subSchemaPath)
-      })
+      await loadSubSchema(body.allOf)
     }
     if (body.anyOf?.find((x) => x.$ref)) {
-      //"/schema/gcn/notices/core/Event.schema.json"
-      body.anyOf.forEach(async (x) => {
-        if (!x.$ref.startsWith('#')) {
-          const subSchemaPath = join(
-            dirname(require.resolve('@nasa-gcn/schema')),
-            x.$ref.replace('schema/', '')
-          )
-
-          x.schema = JSON.parse(
-            await readFile(subSchemaPath, {
-              encoding: 'utf-8',
-            })
-          )
-        }
-      })
+      await loadSubSchema(body.anyOf)
+    }
+    if (body.oneOf?.find((x) => x.$ref)) {
+      await loadSubSchema(body.oneOf)
     }
   } catch (e) {
     if (isErrnoException(e) && e.code === 'ENOENT') {
@@ -65,4 +49,21 @@ export async function loadJson(filePath: string): Promise<Schema> {
   }
 
   return body
+}
+
+async function loadSubSchema(schemaArray: ReferencedSchema[]) {
+  schemaArray.forEach(async (x) => {
+    if (!x.$ref.startsWith('#')) {
+      const subSchemaPath = join(
+        dirname(require.resolve('@nasa-gcn/schema')),
+        x.$ref.replace('schema/', '')
+      )
+
+      x.schema = JSON.parse(
+        await readFile(subSchemaPath, {
+          encoding: 'utf-8',
+        })
+      )
+    }
+  })
 }

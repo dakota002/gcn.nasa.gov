@@ -12,6 +12,7 @@ import { Table } from '@trussworks/react-uswds'
 import { loadJson } from '../../lib/schema-data'
 import { Highlight } from '~/components/Highlight'
 import type { Schema, SchemaProperty } from '~/components/SchemaBrowserElements'
+import { SchemaPropertiesTableBody } from '~/components/SchemaBrowserElements'
 import { ReferencedElementTable } from '~/components/SchemaBrowserElements'
 
 export async function loader({ params: { '*': path } }: DataFunctionArgs) {
@@ -42,7 +43,7 @@ export default function () {
         <small>* = required</small>
       </p>
       {result.properties && (
-        <Table bordered={false} stackedStyle="default">
+        <Table stackedStyle="default">
           <thead>
             <tr>
               <th>Name</th>
@@ -51,7 +52,8 @@ export default function () {
             </tr>
           </thead>
           <tbody>
-            {Object.keys(result.properties).map((itemKey) => (
+            <SchemaPropertiesTableBody schema={result} />
+            {/* {Object.keys(result.properties).map((itemKey) => (
               <tr key={itemKey}>
                 <th scope="row">{formatFieldName(itemKey, result.required)}</th>
                 <td>
@@ -70,7 +72,7 @@ export default function () {
                   )}
                 </td>
               </tr>
-            ))}
+            ))} */}
           </tbody>
         </Table>
       )}
