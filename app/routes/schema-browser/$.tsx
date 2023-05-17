@@ -9,35 +9,39 @@ import type { DataFunctionArgs } from '@remix-run/node'
 import { Link, useLoaderData } from '@remix-run/react'
 import { Table } from '@trussworks/react-uswds'
 
-import { loadJson } from '../../lib/schema-data'
+import { loadJson, loadSchemaExamples } from '../../lib/schema-data'
 import { Highlight } from '~/components/Highlight'
 import type { Schema, SchemaProperty } from '~/components/SchemaBrowserElements'
 import { SchemaPropertiesTableBody } from '~/components/SchemaBrowserElements'
 import { ReferencedElementTable } from '~/components/SchemaBrowserElements'
+import { Tab, Tabs } from '~/components/Tabs'
 
 export async function loader({ params: { '*': path } }: DataFunctionArgs) {
-  if (!path) throw new Response('schemaName must be defined', { status: 400 })
+  if (!path) throw new Response('path must be defined', { status: 400 })
   let result: Schema
   if (!path.includes('.schema.json'))
     throw new Response('Only schema paths allowed', { status: 400 })
+  const examples = await loadSchemaExamples(path)
   result = await loadJson(path)
-  const examplePath = path.replace('.schema.', '.example.')
-  let exampleJSON
-  try {
-    exampleJSON = await loadJson(examplePath)
-  } catch (error) {
-    console.log(`No example for ${path}`)
-  }
 
-  return { path, result, isTree: false, exampleJSON }
+  return { path, result, examples }
 }
 
 export default function () {
-  const { path, result, exampleJSON } = useLoaderData<typeof loader>()
+  const { path, result, examples } = useLoaderData<typeof loader>()
   return (
     <>
       <h1>{result.title ?? path}</h1>
       <p>{result.description}</p>
+      <div>
+        View the source on{' '}
+        <Link
+          rel="external"
+          to={`https://github.com/nasa-gcn/gcn-schema/blob/main/${path}`}
+        >
+          Github
+        </Link>
+      </div>
       <h2>Properties</h2>
       <p>
         <small>* = required</small>
@@ -53,26 +57,6 @@ export default function () {
           </thead>
           <tbody>
             <SchemaPropertiesTableBody schema={result} />
-            {/* {Object.keys(result.properties).map((itemKey) => (
-              <tr key={itemKey}>
-                <th scope="row">{formatFieldName(itemKey, result.required)}</th>
-                <td>
-                  {result.properties &&
-                    formatFieldType(result.properties[itemKey])}
-                </td>
-                <td>
-                  {(result.properties &&
-                    result.properties[itemKey].description) ??
-                    ''}
-                  {result.properties && result.properties[itemKey].enum && (
-                    <>
-                      <br />
-                      Options: {result.properties[itemKey].enum?.join(', ')}
-                    </>
-                  )}
-                </td>
-              </tr>
-            ))} */}
           </tbody>
         </Table>
       )}
@@ -82,7 +66,8 @@ export default function () {
           <h3>Properties from all of the following:</h3>
           <p>
             These properties are inherited using the <code>allOf</code> syntax.
-            See{' '}
+            In order to validate, all of the following schemas must be
+            individually valid, based on their respective properties. See{' '}
             <Link
               rel="external"
               to="https://json-schema.org/understanding-json-schema/reference/combining.html#allof"
@@ -100,7 +85,8 @@ export default function () {
           <h3>Properties from any of the following:</h3>
           <p>
             These properties are inherited using the <code>anyOf</code> syntax.
-            See{' '}
+            In order to validate, at least one of the following schemas must be
+            individually valid based on their respective properties. See{' '}
             <Link
               rel="external"
               to="https://json-schema.org/understanding-json-schema/reference/combining.html#anyof"
@@ -118,12 +104,13 @@ export default function () {
           <h3>Properties from one of the following:</h3>
           <p>
             These properties are inherited using the <code>oneOf</code> syntax.
-            See{' '}
+            In order to validate, exactly one of the following schemas must be
+            individually valid based on their respective properties. See{' '}
             <Link
               rel="external"
               to="https://json-schema.org/understanding-json-schema/reference/combining.html#oneof"
             >
-              allOf
+              oneOf
             </Link>{' '}
             for more information.
           </p>
@@ -134,6 +121,10 @@ export default function () {
       {result.$defs && (
         <>
           <h3>Locally defined sub-schemas</h3>
+          <p>
+            These sub-schemas are defined locally within the same{' '}
+            <code>.schema.json</code> file as the current schema definition.
+          </p>
           <Table fullWidth>
             <thead>
               <tr>
@@ -166,25 +157,21 @@ export default function () {
           </Table>
         </>
       )}
-
-      {exampleJSON && (
+      {examples.length > 0 && (
         <>
           <h2>Example</h2>
-          <Highlight
-            language="json"
-            code={JSON.stringify(exampleJSON, null, 2)}
-          />
+          <Tabs>
+            {examples.map((example) => (
+              <Tab key={example.name} label={example.name}>
+                <Highlight
+                  language="json"
+                  code={JSON.stringify(example.content, null, 2)}
+                />
+              </Tab>
+            ))}
+          </Tabs>
         </>
       )}
-      <div>
-        View the source on{' '}
-        <Link
-          rel="external"
-          to={`https://github.com/nasa-gcn/gcn-schema/blob/main/${path}`}
-        >
-          Github
-        </Link>
-      </div>
     </>
   )
 }

@@ -5,7 +5,7 @@
  *
  * SPDX-License-Identifier: NASA-1.3
  */
-import { readFile } from 'fs/promises'
+import { readFile, readdir } from 'fs/promises'
 import { dirname, extname, join } from 'path'
 
 import type {
@@ -16,6 +16,7 @@ import type {
 function isErrnoException(e: unknown): e is NodeJS.ErrnoException {
   return e instanceof Error && 'code' in e && 'errno' in e
 }
+
 export async function loadJson(filePath: string): Promise<Schema> {
   if (!filePath) throw new Error('path must be defined')
 
@@ -66,4 +67,32 @@ async function loadSubSchema(schemaArray: ReferencedSchema[]) {
       )
     }
   })
+}
+
+export type ExampleFiles = {
+  name: string
+  content: object
+}
+
+export async function loadSchemaExamples(
+  path: string
+): Promise<ExampleFiles[]> {
+  const dirPath = path.substring(0, path.lastIndexOf('/') + 1)
+  const schemaName = path.substring(path.lastIndexOf('/') + 1)
+  const exampleFiles = (
+    await readdir(join(dirname(require.resolve('@nasa-gcn/schema')), dirPath))
+  ).filter(
+    (x) =>
+      x.startsWith(`${schemaName.split('.')[0]}.`) &&
+      x.endsWith('.example.json')
+  )
+  let result: ExampleFiles[] = []
+  exampleFiles.forEach(async (exampleFile) => {
+    const example = await loadJson(join(dirPath, exampleFile))
+    result.push({
+      name: exampleFile.replace('.example.json', ''),
+      content: example,
+    })
+  })
+  return result
 }

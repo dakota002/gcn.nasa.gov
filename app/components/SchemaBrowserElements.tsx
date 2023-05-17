@@ -139,3 +139,7 @@ function formatFieldType(item: SchemaProperty): string {
   if (item.$ref) return item.$ref.split('/').slice(-1)[0]
   return ''
 }
+
+// function formatFieldDescription(item: SchemaProperty): string {
+//   return ''
+// }
