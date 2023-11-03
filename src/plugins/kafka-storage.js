@@ -22,6 +22,7 @@ export const deploy = {
   start({ cloudformation, arc }) {
     console.log('From deploy:')
     console.log(JSON.stringify(cloudformation, null, 2))
+    // cloudformation.
     // cloudformation.Resources.kafkaStorageBucket = {
     //   Type: 'AWS::S3::Bucket',
     //   Properties: {
