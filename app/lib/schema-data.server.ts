@@ -179,3 +179,8 @@ export const getLatestRelease = memoizee(
   },
   { promise: true }
 )
+
+export async function search(query: string) {
+  return (await octokit.search.code({ q: `repo:nasa-gcn/gcn-schema ${query}` }))
+    .data.items
+}

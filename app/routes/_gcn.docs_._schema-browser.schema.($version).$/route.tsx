@@ -24,6 +24,7 @@ import { useParams } from 'react-router'
 import invariant from 'tiny-invariant'
 
 import type { loader as parentLoader } from '../_gcn.docs_._schema-browser'
+import SchemaBrowserSearch from '../_gcn.docs_._schema-browser.schema.search'
 import type { Schema } from './components'
 import {
   ReferencedElementTable,
@@ -198,6 +199,7 @@ export default function () {
           ) : (
             <>
               <Documentation />
+              <SchemaBrowserSearch />
               <CardGroup>
                 {data.map((x) => (
                   <Link key={x.path} to={x.path} className="tablet:grid-col-3">
