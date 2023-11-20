@@ -180,7 +180,11 @@ export const getLatestRelease = memoizee(
   { promise: true }
 )
 
-export async function search(query: string) {
-  return (await octokit.search.code({ q: `repo:nasa-gcn/gcn-schema ${query}` }))
-    .data.items
+export async function schemaSearch(query: string) {
+  return (
+    // "-path:.example.json" should exclude the files, but doesn't seem to work correctly
+    (
+      await octokit.search.code({ q: `repo:nasa-gcn/gcn-schema ${query}` })
+    ).data.items.filter((item) => !item.name.includes('.example.json'))
+  )
 }

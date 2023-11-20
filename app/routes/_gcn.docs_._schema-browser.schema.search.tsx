@@ -3,15 +3,13 @@ import { json } from '@remix-run/node'
 import { useFetcher } from '@remix-run/react'
 import { Button, Card, CardGroup, TextInput } from '@trussworks/react-uswds'
 
-import { search } from '~/lib/schema-data.server'
-
-// import { getFormDataString } from '~/lib/utils'
+import { schemaSearch } from '~/lib/schema-data.server'
 
 export async function loader({ request: { url } }: DataFunctionArgs) {
   const { searchParams } = new URL(url)
   const searchString = searchParams.get('search') || undefined
   let result
-  if (searchString) result = await search(searchString)
+  if (searchString) result = await schemaSearch(searchString)
   return json(result)
 }
 
@@ -36,11 +34,19 @@ export default function SchemaBrowserSearch() {
         </Button>
       </fetcher.Form>
       {fetcher.data && (
-        <CardGroup>
-          {fetcher.data.map((item) => (
-            <Card key={item.score}>This is a test {JSON.stringify(item)}</Card>
-          ))}
-        </CardGroup>
+        <>
+          <h2>Results</h2>
+          <CardGroup>
+            {fetcher.data.map((item) => (
+              <Card key={item.name}>
+                <h3>{item.name}</h3>
+                <p>{item.path}</p>
+
+                {JSON.stringify(item)}
+              </Card>
+            ))}
+          </CardGroup>
+        </>
       )}
     </>
   )
