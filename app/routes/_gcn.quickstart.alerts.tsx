@@ -24,6 +24,7 @@ export default function () {
   const [params] = useSearchParams()
   const [alertsValid, setAlertsValid] = useState(false)
   const clientId = params.get('clientId') || undefined
+  const credentialType = params.get('credentialType') || 'consumer'
   const [format, setFormat] = useState<NoticeFormat>('text')
 
   return (
@@ -50,6 +51,7 @@ export default function () {
         validationFunction={setAlertsValid}
       />
       <input type="hidden" name="clientId" value={clientId} />
+      <input type="hidden" name="credentialType" value={credentialType} />
       <FormGroup>
         <ButtonGroup>
           <Link

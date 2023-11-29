@@ -22,9 +22,8 @@ export const handle: BreadcrumbHandle & SEOHandle = {
 }
 
 export async function loader({ request }: DataFunctionArgs) {
-  const { clientId, noticeFormat, ...rest } = Object.fromEntries(
-    new URL(request.url).searchParams
-  )
+  const { clientId, noticeFormat, credentialType, ...rest } =
+    Object.fromEntries(new URL(request.url).searchParams)
   const noticeTypes = Object.keys(rest)
   const machine = await ClientCredentialVendingMachine.create(request)
   const clientCredentialProps = await machine.getClientCredential(clientId)

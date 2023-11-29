@@ -38,6 +38,13 @@ export default function () {
     </>
   )
 
+  const userConsumerCredentials = client_credentials.filter((credential) =>
+    credential.scope.endsWith('-consumer')
+  )
+
+  const userProducerCredentials = client_credentials.filter((credential) =>
+    credential.scope.endsWith('-producer')
+  )
   return (
     <>
       {client_credentials.length > 0 ? (
@@ -46,11 +53,40 @@ export default function () {
             {explanation} Select one of your existing client credentials, or
             create a new one.
           </p>
-          <SegmentedCards>
-            {client_credentials.map((credential) => (
-              <CredentialCard key={credential.client_id} {...credential} />
-            ))}
-          </SegmentedCards>
+          {userConsumerCredentials.length > 0 && (
+            <>
+              <h3>Consumer Credentials</h3>
+              <SegmentedCards>
+                {client_credentials
+                  .filter((credential) =>
+                    credential.scope.endsWith('-consumer')
+                  )
+                  .map((credential) => (
+                    <CredentialCard
+                      key={credential.client_id}
+                      {...credential}
+                    />
+                  ))}
+              </SegmentedCards>
+            </>
+          )}
+          {userProducerCredentials.length > 0 && (
+            <>
+              <h3>Producer Credentials</h3>
+              <SegmentedCards>
+                {client_credentials
+                  .filter((credential) =>
+                    credential.scope.endsWith('-producer')
+                  )
+                  .map((credential) => (
+                    <CredentialCard
+                      key={credential.client_id}
+                      {...credential}
+                    />
+                  ))}
+              </SegmentedCards>
+            </>
+          )}
           <div className="padding-2" key="new">
             <strong>New client credentials....</strong>
             <NewCredentialForm />

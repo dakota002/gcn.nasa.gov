@@ -42,13 +42,21 @@ export async function handleCredentialActions(
       const name = getFormDataString(data, 'name')
       const scope = getFormDataString(data, 'scope')
       const recaptchaResponse = getFormDataString(data, 'g-recaptcha-response')
+      let credentialType = getFormDataString(data, 'credentialType') ?? ''
+      if (!credentialType && scope) {
+        if (scope.endsWith('-consumer')) {
+          credentialType = 'consumer'
+        } else if (scope.endsWith('-producer')) {
+          credentialType = 'producer'
+        }
+      }
       await verifyRecaptcha(recaptchaResponse)
       const { client_id } = await machine.createClientCredential(name, scope)
       let redirectTarget = ''
       if (redirectSource == 'quickstart') {
         redirectTarget = `/quickstart/alerts?clientId=${encodeURIComponent(
           client_id
-        )}`
+        )}&credentialType=${encodeURIComponent(credentialType)}`
       } else if (redirectSource == 'user') {
         redirectTarget = '/user/credentials'
       }
@@ -80,6 +88,9 @@ export function NewCredentialForm({
   const { groups } = useLoaderData<typeof loader>()
   const [recaptchaValid, setRecaptchaValid] = useState(!useRecaptchaSiteKey())
   const [nameValid, setNameValid] = useState(false)
+  const [credentialType, setCredentialType] = useState<'consumer' | 'producer'>(
+    'consumer'
+  )
 
   return (
     <Form method="POST">
@@ -101,19 +112,39 @@ export function NewCredentialForm({
         placeholder="Name"
         onChange={(e) => setNameValid(Boolean(e.target.value))}
       />
+
       <Label htmlFor="scope">Scope</Label>
+      <input type="hidden" name="credentialType" value={credentialType} />
+      <ButtonGroup type="segmented">
+        <Button
+          type="button"
+          outline={credentialType !== 'consumer'}
+          onClick={() => setCredentialType('consumer')}
+        >
+          Consumer
+        </Button>
+        <Button
+          type="button"
+          outline={credentialType !== 'producer'}
+          onClick={() => setCredentialType('producer')}
+        >
+          Producer
+        </Button>
+      </ButtonGroup>
       <Fieldset id="scope">
-        {groups.map(([key, description], index) => (
-          <Radio
-            name="scope"
-            id={key}
-            key={key}
-            value={key}
-            defaultChecked={index === 0}
-            label={key}
-            labelDescription={description}
-          />
-        ))}
+        {groups
+          .filter(([key, description]) => key.includes(credentialType))
+          .map(([key, description], index) => (
+            <Radio
+              name="scope"
+              id={key}
+              key={key}
+              value={key}
+              defaultChecked={index === 0}
+              label={key}
+              labelDescription={description}
+            />
+          ))}
       </Fieldset>
       <ReCAPTCHA
         onChange={(value) => {
