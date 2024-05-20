@@ -22,6 +22,7 @@ const options = {
   target: ['node18'],
   minify: !dev,
   sourcemap: dev,
+  loader: { '.node': 'empty' },
 }
 
 if (dev) {
