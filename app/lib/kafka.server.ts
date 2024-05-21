@@ -14,7 +14,11 @@ const client_secret = getEnvOrDie('KAFKA_CLIENT_SECRET')
 const producer = new Kafka({
   client_id,
   client_secret,
-  domain,
+  domain: domain as
+    | 'gcn.nasa.gov'
+    | 'test.gcn.nasa.gov'
+    | 'dev.gcn.nasa.gov'
+    | undefined,
 }).producer()
 
 process.on('SIGTERM', async () => {
@@ -22,14 +26,13 @@ process.on('SIGTERM', async () => {
   process.exit(0)
 })
 
-export async function sendKafka(item: any, topic: string) {
+export async function sendKafka(topic: string, item: string) {
   await producer.connect()
   await producer.send({
     topic,
     messages: [
       {
-        key: 'message',
-        value: JSON.stringify(item),
+        value: item,
       },
     ],
   })

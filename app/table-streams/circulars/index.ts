@@ -123,7 +123,9 @@ export const handler = createTriggerHandler(
       if (eventName === 'INSERT') {
         promises.push(send(circular))
         const { sub, ...cleanedCircular } = circular
-        promises.push(sendKafka(cleanedCircular, 'gcn.circulars'))
+        promises.push(
+          sendKafka('gcn.circulars', JSON.stringify(cleanedCircular))
+        )
       }
     }
 

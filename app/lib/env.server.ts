@@ -45,18 +45,13 @@ function getHostname() {
 }
 
 function getDomain() {
-  const hostname = getHostname() as
-    | 'gcn.nasa.gov'
-    | 'test.gcn.nasa.gov'
-    | 'dev.gcn.nasa.gov'
-    | undefined
-
+  const hostname = getHostname()
   if (hostname === 'gcn.nasa.gov') {
-    return undefined
+    return null
   } else if (hostname?.endsWith('gcn.nasa.gov')) {
     return hostname
   } else {
-    return 'dev.gcn.nasa.gov'
+    return 'test.gcn.nasa.gov'
   }
 }
 
