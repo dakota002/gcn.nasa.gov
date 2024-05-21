@@ -210,6 +210,18 @@ export function useHostname() {
   return new URL(useLoaderDataRoot().origin).hostname
 }
 
+export function useDomain() {
+  const hostname = useHostname()
+
+  if (hostname === 'gcn.nasa.gov') {
+    return null
+  } else if (hostname?.endsWith('gcn.nasa.gov')) {
+    return hostname
+  } else {
+    return 'test.gcn.nasa.gov'
+  }
+}
+
 function Progress() {
   const { state } = useNavigation()
   const showProgress = useSpinDelay(state !== 'idle')

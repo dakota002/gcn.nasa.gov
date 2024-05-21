@@ -7,33 +7,33 @@
  */
 import { Kafka } from 'gcn-kafka'
 
-import { getEnvOrDie, hostname } from './env.server'
-import type { Circular } from '~/routes/circulars/circulars.lib'
+import { domain, getEnvOrDie, hostname } from './env.server'
 
 const client_id = getEnvOrDie('KAFKA_CLIENT_ID')
 const client_secret = getEnvOrDie('KAFKA_CLIENT_SECRET')
-const domain = hostname as
-  | 'gcn.nasa.gov'
-  | 'test.gcn.nasa.gov'
-  | 'dev.gcn.nasa.gov'
-
 const producer = new Kafka({
   client_id,
   client_secret,
   domain,
 }).producer()
 
-export async function sendKafka(circular: Circular, topic: string) {
-  delete circular.sub
+process.on('SIGTERM', async () => {
+  await producer.disconnect()
+  process.exit(0)
+})
+
+export async function sendKafka(item: any, topic: string) {
   await producer.connect()
   await producer.send({
     topic,
     messages: [
       {
         key: 'message',
-        value: JSON.stringify(circular),
+        value: JSON.stringify(item),
       },
     ],
   })
-  await producer.disconnect()
+  if (hostname === 'localhost') {
+    await producer.disconnect()
+  }
 }
