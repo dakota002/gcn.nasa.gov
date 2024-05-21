@@ -6,24 +6,30 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import { tables } from '@architect/functions'
+import type { AttributeValue } from '@aws-sdk/client-dynamodb'
 import { paginateQuery, paginateScan } from '@aws-sdk/lib-dynamodb'
 import type { DynamoDBDocument } from '@aws-sdk/lib-dynamodb'
+import { unmarshall } from '@aws-sdk/util-dynamodb'
 import { search as getSearchClient } from '@nasa-gcn/architect-functions-search'
 import { errors } from '@opensearch-project/opensearch'
-import type { DynamoDBRecord } from 'aws-lambda'
+import type {
+  DynamoDBRecord,
+  AttributeValue as LambdaTriggerAttributeValue,
+} from 'aws-lambda'
 
 import { sendEmailBulk } from '~/lib/email.server'
 import { origin } from '~/lib/env.server'
 import { sendKafka } from '~/lib/kafka.server'
-import {
-  createTriggerHandler,
-  unmarshallTrigger,
-} from '~/lib/lambdaTrigger.server'
+import { createTriggerHandler } from '~/lib/lambdaTrigger.server'
 import type { Circular } from '~/routes/circulars/circulars.lib'
 import { formatCircularText } from '~/routes/circulars/circulars.lib'
 
 const index = 'circulars'
 const fromName = 'GCN Circulars'
+
+function unmarshallTrigger(item?: Record<string, LambdaTriggerAttributeValue>) {
+  return unmarshall(item as Record<string, AttributeValue>)
+}
 
 async function removeIndex(id: number) {
   const client = await getSearchClient()

@@ -5,9 +5,6 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-import type { AttributeValue } from '@aws-sdk/client-dynamodb'
-import { unmarshall } from '@aws-sdk/util-dynamodb'
-import type { AttributeValue as LambdaTriggerAttributeValue } from 'aws-lambda'
 
 // Type guarding to get around an error when trying to access `reason`
 const isRejected = (
@@ -43,10 +40,4 @@ export async function allSettledOrRaise<T extends readonly unknown[]>(
       -readonly [P in keyof T]: PromiseFulfilledResult<Awaited<T[P]>>
     }
   ).map(({ value }) => value) as { -readonly [P in keyof T]: Awaited<T[P]> }
-}
-
-export function unmarshallTrigger(
-  item?: Record<string, LambdaTriggerAttributeValue>
-) {
-  return unmarshall(item as Record<string, AttributeValue>)
 }
