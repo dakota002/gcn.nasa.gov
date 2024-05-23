@@ -19,7 +19,7 @@ import type {
 
 import { sendEmailBulk } from '~/lib/email.server'
 import { origin } from '~/lib/env.server'
-import { sendKafka } from '~/lib/kafka.server'
+import { send as sendKafka } from '~/lib/kafka.server'
 import { createTriggerHandler } from '~/lib/lambdaTrigger.server'
 import type { Circular } from '~/routes/circulars/circulars.lib'
 import { formatCircularText } from '~/routes/circulars/circulars.lib'

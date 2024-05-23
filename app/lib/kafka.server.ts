@@ -8,35 +8,32 @@
 import { Kafka } from 'gcn-kafka'
 import memoizee from 'memoizee'
 
-import { domain, getEnvOrDie, hostname } from './env.server'
+import { domain, getEnvOrDie } from './env.server'
 
 const client_id = getEnvOrDie('KAFKA_CLIENT_ID')
 const client_secret = getEnvOrDie('KAFKA_CLIENT_SECRET')
-const producer = new Kafka({
+const kafka = new Kafka({
   client_id,
   client_secret,
-  domain: domain as
-    | 'gcn.nasa.gov'
-    | 'test.gcn.nasa.gov'
-    | 'dev.gcn.nasa.gov'
-    | undefined,
-}).producer()
-
-process.on('SIGTERM', async () => {
-  await producer.disconnect()
-  process.exit(0)
+  domain,
 })
 
-export const sendKafka = memoizee(async function (topic: string, item: string) {
-  await producer.connect()
-  await producer.send({
-    topic,
-    messages: [
-      {
-        value: item,
-      },
-    ],
-  })
-  // FIXME: Sandbox does not emit SIGTERM, SIGINT, etc.
-  if (hostname === 'localhost') await producer.disconnect()
-})
+// FIXME: remove memoizee and use top-level await once we switch to ESM builds.
+const getProducer = memoizee(
+  async () => {
+    const producer = kafka.producer()
+    await producer.connect()
+    process.once('beforeExit', async () => {
+      console.log('Disconnecting from Kafka')
+      await producer.disconnect()
+      console.log('Disconnected from Kafka')
+    })
+    return producer
+  },
+  { promise: true }
+)
+
+export async function send(topic: string, value: string) {
+  const producer = await getProducer()
+  await producer.send({ topic, messages: [{ value }] })
+}
