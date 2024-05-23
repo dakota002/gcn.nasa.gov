@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import { Kafka } from 'gcn-kafka'
+import memoizee from 'memoizee'
 
 import { domain, getEnvOrDie, hostname } from './env.server'
 
@@ -26,7 +27,7 @@ process.on('SIGTERM', async () => {
   process.exit(0)
 })
 
-export async function sendKafka(topic: string, item: string) {
+export const sendKafka = memoizee(async function (topic: string, item: string) {
   await producer.connect()
   await producer.send({
     topic,
@@ -36,7 +37,6 @@ export async function sendKafka(topic: string, item: string) {
       },
     ],
   })
-  if (hostname === 'localhost') {
-    await producer.disconnect()
-  }
-}
+  // FIXME: Sandbox does not emit SIGTERM, SIGINT, etc.
+  if (hostname === 'localhost') await producer.disconnect()
+})
