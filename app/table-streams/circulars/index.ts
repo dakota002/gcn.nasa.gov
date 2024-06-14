@@ -97,17 +97,27 @@ async function send(circular: Circular) {
     getLegacyEmails(),
   ])
   const to = [...emails, ...legacyEmails]
-  await sendEmailBulk({
-    fromName,
-    to,
-    subject: circular.subject,
-    body: `${formatCircularText(
-      circular
-    )}\n\n\nView this GCN Circular online at ${origin}/circulars/${
-      circular.circularId
-    }.`,
-    topic: 'circulars',
-  })
+  try {
+    await sendEmailBulk({
+      fromName,
+      to,
+      subject: circular.subject,
+      body: `${formatCircularText(
+        circular
+      )}\n\n\nView this GCN Circular online at ${origin}/circulars/${
+        circular.circularId
+      }.`,
+      topic: 'circulars',
+    })
+  } catch (e) {
+    if (process.env.NODE_ENV === 'production') {
+      throw e
+    } else {
+      console.warn(
+        `SES threw ${e}. This would be an error in production. Since we are in ${process.env.NODE_ENV}, ${e}.`
+      )
+    }
+  }
 }
 
 export const handler = createTriggerHandler(
