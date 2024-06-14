@@ -118,9 +118,13 @@ export async function sendEmailBulk({
           },
         }))
       )
-      await client.send(
-        new SendBulkEmailCommand({ BulkEmailEntries, ...message })
-      )
+      try {
+        await client.send(
+          new SendBulkEmailCommand({ BulkEmailEntries, ...message })
+        )
+      } catch (e) {
+        sesMaybeThrow(e, 'not actually sending bulk email')
+      }
     })
   )
 }
@@ -152,4 +156,14 @@ export async function sendEmail({
       },
     },
   })
+}
+
+function sesMaybeThrow(e: any, warning: string) {
+  if (process.env.NODE_ENV === 'production') {
+    throw e
+  } else {
+    console.warn(
+      `Cognito threw ${e}. This would be an error in production. Since we are in ${process.env.NODE_ENV}, ${warning}.`
+    )
+  }
 }
