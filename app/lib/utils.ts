@@ -45,6 +45,17 @@ export function getFormDataString(formData: FormData, key: string) {
   }
 }
 
+export function getFormDataListItems(formData: FormData, inputKey: string) {
+  const selectedOptions = []
+  for (const entry of formData) {
+    const [key, value] = entry
+    if (key === inputKey) {
+      selectedOptions.push(value.toString())
+    }
+  }
+  return selectedOptions
+}
+
 export function getEnvBannerHeaderAndDescription(hostname: string) {
   const production_hostname = 'gcn.nasa.gov'
   let heading, description

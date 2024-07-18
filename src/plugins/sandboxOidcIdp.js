@@ -44,6 +44,9 @@ const localSandboxProfiles = {
     'cognito:username': 'user@example.com',
     'cognito:groups': [
       'gcn.nasa.gov/kafka-public-consumer',
+      'gcn.nasa.gov/kafka-example-producer',
+      'gcn.nasa.gov/kafka-example-consumer',
+      'gcn.nasa.gov/kafka-example-other',
       'gcn.nasa.gov/circular-submitter',
       'gcn.nasa.gov/circular-moderator',
     ],

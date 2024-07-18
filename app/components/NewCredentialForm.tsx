@@ -11,16 +11,16 @@ import { Form, Link, useLoaderData } from '@remix-run/react'
 import {
   Button,
   ButtonGroup,
+  Checkbox,
   Fieldset,
   FormGroup,
   Label,
-  Radio,
   TextInput,
 } from '@trussworks/react-uswds'
 import { useState } from 'react'
 
 import { ReCAPTCHA, verifyRecaptcha } from './ReCAPTCHA'
-import { getFormDataString } from '~/lib/utils'
+import { getFormDataListItems, getFormDataString } from '~/lib/utils'
 import { useRecaptchaSiteKey } from '~/root'
 import { ClientCredentialVendingMachine } from '~/routes/user.credentials/client_credentials.server'
 
@@ -40,10 +40,10 @@ export async function handleCredentialActions(
   switch (getFormDataString(data, 'intent')) {
     case 'create':
       const name = getFormDataString(data, 'name')
-      const scope = getFormDataString(data, 'scope')
+      const scopes = getFormDataListItems(data, 'scopes')
       const recaptchaResponse = getFormDataString(data, 'g-recaptcha-response')
       await verifyRecaptcha(recaptchaResponse)
-      const { client_id } = await machine.createClientCredential(name, scope)
+      const { client_id } = await machine.createClientCredential(name, scopes)
       let redirectTarget = ''
       if (redirectSource == 'quickstart') {
         redirectTarget = `/quickstart/alerts?clientId=${encodeURIComponent(
@@ -104,12 +104,11 @@ export function NewCredentialForm({
       <Label htmlFor="scope">Scope</Label>
       <Fieldset id="scope">
         {groups.map(([key, description], index) => (
-          <Radio
-            name="scope"
-            id={key}
+          <Checkbox
             key={key}
+            id={key}
+            name="scopes"
             value={key}
-            defaultChecked={index === 0}
             label={key}
             labelDescription={description}
           />

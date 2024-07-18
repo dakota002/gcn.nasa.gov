@@ -5155,5 +5155,26 @@
       "requestorEmail": "example@example.com",
       "subject": "Optical Observations for GRB 971227"
     }
+  ],
+  "client_credentials": [
+    {
+      "sub": "1234abcd-1234-abcd-1234-abcd1234abcd",
+      "client_id": "qwertyuiopasdfghjklzxcvbnm",
+      "created": "1712323200000",
+      "name": "Example Single Scope Credential",
+      "scope": "gcn.nasa.gov/kafka-gcn-test-consumer"
+    },
+    {
+      "sub": "1234abcd-1234-abcd-1234-abcd1234abcd",
+      "client_id": "mnbvcxzlkjhgfdsapoiuytrewq",
+      "created": "1712323200000",
+      "name": "Example Multiple Scope Credential",
+      "scope": [
+        "gcn.nasa.gov/kafka-public-consumer",
+        "gcn.nasa.gov/kafka-example-producer",
+        "gcn.nasa.gov/kafka-example-consumer",
+        "gcn.nasa.gov/kafka-example-other"
+      ]
+    }
   ]
 }

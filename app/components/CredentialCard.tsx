@@ -45,7 +45,18 @@ export default function CredentialCard({
           </div>
           <div>
             <small>
-              scope: <code>{scope}</code>
+              scope{Array.isArray(scope) && scope.length > 1 ? 's' : ''}:{' '}
+              {!Array.isArray(scope) || scope.length === 1 ? (
+                <code>{[...scope].join('')}</code>
+              ) : (
+                <ul className="margin-left-1 margin-y-05 padding-left-1">
+                  {scope.map((x) => (
+                    <li key={x}>
+                      <code>{x}</code>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </small>
           </div>
           <div>

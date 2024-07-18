@@ -20,7 +20,7 @@ import { getUser } from '~/routes/_auth/user.server'
 export interface RedactedClientCredential {
   name: string
   client_id: string
-  scope: string
+  scope: string | string[]
   created: number
 }
 
@@ -116,17 +116,18 @@ export class ClientCredentialVendingMachine {
 
   async createClientCredential(
     name?: string,
-    scope?: string
+    scopes?: string[]
   ): Promise<UnRedactedClientCredential> {
     if (!name) throw new Response('name must not be empty', { status: 400 })
-    if (!scope) throw new Response('scope must not be empty', { status: 400 })
-    if (!this.#groups.includes(scope))
+    if (!scopes?.length)
+      throw new Response('scope must not be empty', { status: 400 })
+    if (scopes.some((scope) => !this.#groups.includes(scope)))
       throw new Response('user does not belong to the requested group', {
         status: 403,
       })
 
     const { client_id, client_secret } =
-      await this.#createClientCredentialInternal(scope)
+      await this.#createClientCredentialInternal(scopes)
     const created = Date.now()
 
     const db = await tables()
@@ -134,18 +135,18 @@ export class ClientCredentialVendingMachine {
       name,
       created,
       client_id,
-      scope,
+      scope: scopes,
       sub: this.#sub,
     })
 
-    return { name, created, client_id, client_secret, scope }
+    return { name, created, client_id, client_secret, scope: scopes }
   }
 
-  async #createClientCredentialInternal(scope: string) {
+  async #createClientCredentialInternal(scopes: string[]) {
     const command = new CreateUserPoolClientCommand({
       AllowedOAuthFlows: ['client_credentials'],
       AllowedOAuthFlowsUserPoolClient: true,
-      AllowedOAuthScopes: [scope],
+      AllowedOAuthScopes: scopes,
       ClientName: 'auto-generated',
       GenerateSecret: true,
       UserPoolId: process.env.COGNITO_USER_POOL_ID,
