@@ -94,6 +94,23 @@ legacy_users
   email *String
   PointInTimeRecovery true
 
+# Json Notice Tables
+iceCube
+  topic *String
+  createdOn  **String
+
+lvk
+  topic *String
+  createdOn  **String
+
+swift
+  topic *String
+  createdOn  **String
+
+einstein_probe
+  topic *String
+  createdOn  **String
+
 @tables-indexes
 email_notification_subscription
   topic *String
