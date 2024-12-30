@@ -94,6 +94,12 @@ legacy_users
   email *String
   PointInTimeRecovery true
 
+@sandbox
+external-db true
+
+@sandbox-table-streams # Listed as optional in the guide, but actually throws an error if ommited
+polling_interval 1000
+
 @tables-indexes
 email_notification_subscription
   topic *String
@@ -174,3 +180,5 @@ email-outgoing  # Grant the Lambda function permission to send email; add email 
 email-incoming  # Enable Lambda handlers for incoming emails
 nasa-gcn/architect-plugin-search  # Add an AWS OpenSearch Serverless collection.
 architect/plugin-lambda-invoker
+architect-plugin-dynamodb-local
+hicksy/arc-plugin-sandbox-stream

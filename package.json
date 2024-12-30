@@ -26,6 +26,8 @@
   },
   "dependencies": {
     "@architect/functions": "^5.3.4",
+    "@architect/sandbox": "github:dakota002/sandbox#StreamSpec",
+    "@hicksy/arc-plugin-sandbox-stream": "github:dakota002/arc-plugin-sandbox-stream#SDKv3",
     "@nasa-gcn/architect-functions-search": "^1.0.1",
     "@nasa-gcn/dynamodb-autoincrement": "^2.2.1",
     "@nasa-gcn/remark-rehype-astro": "^1.1.4",
@@ -39,6 +41,7 @@
     "@remix-run/react": "~2.15.0",
     "@trussworks/react-uswds": "github:lpsinger/react-uswds#gcn",
     "@xmldom/xmldom": "^0.9.6",
+    "architect-plugin-dynamodb-local": "file:../architect-plugin-dynamodb-local",
     "aws-lambda-ses-forwarder": "github:lpsinger/aws-lambda-ses-forwarder#aws-sdk-v3",
     "classnames": "^2.5.1",
     "color-convert": "^2.0.1",
