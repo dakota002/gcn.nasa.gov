@@ -40,6 +40,9 @@ export default function () {
                     </NavLink>,
                   ]
                 : []),
+              <NavLink key="teams" to="teams">
+                Teams
+              </NavLink>,
               <NavLink key="credentials" to="credentials">
                 Client Credentials
               </NavLink>,

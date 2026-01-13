@@ -84,7 +84,60 @@ export async function getUsersByTeamId(teamId: string) {
   return Items as TeamMember[]
 }
 
+export async function teamNameAlreadyExists(
+  teamName: string
+): Promise<Boolean> {
+  const db = await tables()
+  return (
+    (
+      await db.teams.query({
+        IndexName: 'teamsByName',
+        KeyConditionExpression: 'teamName = :teamName',
+        ExpressionAttributeValues: {
+          ':teamName': teamName,
+        },
+      })
+    ).Items.length > 0
+  )
+}
+
+export async function editTeam(
+  teamId: string,
+  teamName: string,
+  description: string
+) {
+  const db = await tables()
+  await db.teams.update({
+    Key: { teamId },
+    UpdateExpression: 'set teamName = :teamName, description = :description',
+    ExpressionAttributeValues: {
+      ':teamName': teamName,
+      ':description': description,
+    },
+  })
+}
+
 export async function removeUserFromTeam(sub: string, teamId: string) {
   const db = await tables()
   await db.team_members.delete({ sub, teamId })
+}
+
+export async function getTeam(teamId: string) {
+  const db = await tables()
+  return await db.teams.get({ teamId })
+}
+
+export async function getTeamsByUserId(sub: string) {
+  const db = await tables()
+  const { Items } = await db.team_members.query({
+    KeyConditionExpression: '#sub = :sub',
+    ExpressionAttributeNames: {
+      '#sub': 'sub',
+    },
+    ExpressionAttributeValues: {
+      ':sub': sub,
+    },
+  })
+
+  return await Promise.all(Items.map((x) => db.teams.get({ teamId: x.teamId })))
 }

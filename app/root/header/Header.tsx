@@ -175,6 +175,9 @@ export function Header() {
                           Reset Password
                         </NavLink>
                       ),
+                      <NavLink key="teams" to="/user/teams">
+                        Teams
+                      </NavLink>,
                       <NavLink key="credentials" to="/user/credentials">
                         Client Credentials
                       </NavLink>,
