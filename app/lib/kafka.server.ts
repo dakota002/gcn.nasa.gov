@@ -5,17 +5,56 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-import { Kafka, KafkaJSError } from 'gcn-kafka'
+import type { AclEntry } from 'gcn-kafka'
+import {
+  AclOperationTypes,
+  AclPermissionTypes,
+  AclResourceTypes,
+  Kafka,
+  KafkaJSError,
+  ResourcePatternTypes,
+} from 'gcn-kafka'
 import memoizee from 'memoizee'
 import { custom } from 'openid-client'
 
 import { domain, getEnvOrDieInProduction } from './env.server'
+import { getTeam, userIsTeamAdmin } from './teams.server'
+import type { User } from '~/routes/_auth/user.server'
+
+export type KafkaACL = AclEntry & {
+  aclId?: string
+}
+
+export type UserClientType = 'producer' | 'consumer'
+
+const operations = {
+  consume: [AclOperationTypes.READ, AclOperationTypes.DESCRIBE],
+  produce: [
+    AclOperationTypes.CREATE,
+    AclOperationTypes.READ,
+    AclOperationTypes.WRITE,
+    AclOperationTypes.DESCRIBE,
+  ],
+}
+
+const resourceTypes = [
+  ResourcePatternTypes.LITERAL,
+  ResourcePatternTypes.PREFIXED,
+]
 
 const client_id = getEnvOrDieInProduction('KAFKA_CLIENT_ID') ?? ''
 const client_secret = getEnvOrDieInProduction('KAFKA_CLIENT_SECRET')
 const kafka = new Kafka({
   client_id,
   client_secret,
+  domain,
+})
+
+const admin_client_id = getEnvOrDieInProduction('KAFKA_ADMIN_CLIENT_ID') ?? ''
+const admin_client_secret = getEnvOrDieInProduction('KAFKA_ADMIN_CLIENT_SECRET')
+const adminKafka = new Kafka({
+  client_id: admin_client_id,
+  client_secret: admin_client_secret,
   domain,
 })
 
@@ -84,4 +123,80 @@ if (process.env.ARC_SANDBOX) {
     const producer = await getProducer()
     await producer.send({ topic, messages: [{ value }] })
   }
+}
+
+/**
+ * Creates the Consumer/Producer rules for a new team, once the new team has already been created
+ * @param user
+ * @param teamId
+ */
+export async function createTeamAcls(user: User, teamId: string) {
+  if (!(await userIsTeamAdmin(user.sub, teamId)))
+    throw new Response(null, { status: 403 })
+
+  const team = await getTeam(teamId)
+  if (!team) throw new Response(null, { status: 500 })
+
+  const adminClient = adminKafka.admin()
+  await adminClient.connect()
+  const formattedTeamName = team.teamName.toLowerCase().replaceAll(' ', '_')
+  const consumerAcls = buildAcls(team.topic, formattedTeamName, 'consume')
+  if (team.isPublic) {
+    consumerAcls.push(...buildAcls(team.topic, '*', 'consume'))
+  }
+  const producerAcls = buildAcls(team.topic, formattedTeamName, 'produce')
+  await adminClient.createAcls({ acl: [...consumerAcls, ...producerAcls] })
+}
+
+// This function may be obsolete
+export async function getAclsFromBrokers(user: User, filter?: string) {
+  // validateUser(user)
+  const adminClient = adminKafka.admin()
+  await adminClient.connect()
+  const acls = await adminClient.describeAcls({
+    resourceType: AclResourceTypes.ANY,
+    host: '*',
+    permissionType: AclPermissionTypes.ANY,
+    operation: AclOperationTypes.ANY,
+    resourcePatternType: ResourcePatternTypes.ANY,
+  })
+  await adminClient.disconnect()
+  const results: KafkaACL[] = []
+  for (const item of acls.resources) {
+    results.push(
+      ...item.acls.map((acl) => {
+        return {
+          ...acl,
+          resourceName: item.resourceName,
+          resourceType: item.resourceType,
+          resourcePatternType: item.resourcePatternType,
+        }
+      })
+    )
+  }
+
+  return results
+}
+
+function buildAcls(
+  topic: string,
+  formattedTeamName: string,
+  principalType: 'consume' | 'produce'
+) {
+  return resourceTypes.flatMap((type) =>
+    operations[principalType].map((operation) => {
+      return {
+        resourceType: AclResourceTypes.TOPIC,
+        resourceName: `${topic}${type === ResourcePatternTypes.PREFIXED ? '.' : ''}`,
+        resourcePatternType: type,
+        principal:
+          formattedTeamName == '*'
+            ? 'User:*'
+            : `${principalType}:${formattedTeamName}`,
+        host: '*',
+        operation,
+        permissionType: AclPermissionTypes.ALLOW,
+      }
+    })
+  )
 }
