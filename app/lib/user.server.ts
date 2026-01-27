@@ -74,6 +74,7 @@ export async function getUsersKafkaPermissions(
       teamName: team.teamName,
       description: team.description,
       topic: team.topic,
+      isPublic: team.isPublic,
     }
   })
 }

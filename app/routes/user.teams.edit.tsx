@@ -33,10 +33,10 @@ import { validate } from 'email-validator'
 import { useRef, useState } from 'react'
 
 import { getUser } from './_auth/user.server'
-import { userIsTeamAdmin } from './user.teams/teams_permissions.server'
 import { ReCAPTCHA } from '~/components/ReCAPTCHA'
 import SegmentedCards from '~/components/SegmentedCards'
 import { ToolbarButtonGroup } from '~/components/ToolbarButtonGroup'
+import { createTeamAcls } from '~/lib/kafka.server'
 import {
   type Team,
   addUserToTeam,
@@ -46,8 +46,10 @@ import {
   getUsersByTeamId,
   removeUserFromTeam,
   teamNameAlreadyExists,
+  userIsTeamAdmin,
 } from '~/lib/teams.server'
-import { topicAlreadyExists } from '~/lib/topics.server'
+// import { topicAlreadyExists } from '~/lib/topics.server'
+import type { UserMetadata } from '~/lib/user.server'
 import { getFormDataString } from '~/lib/utils'
 import { useRecaptchaSiteKey } from '~/root'
 
@@ -66,14 +68,21 @@ export async function action({ request }: ActionFunctionArgs) {
       }
     }
     const topicName = getFormDataString(data, 'topic')
+    console.log(topicName)
     if (!topicName) return new Response(null, { status: 400 })
-    if (await topicAlreadyExists(topicName)) {
-      return {
-        topicNameError: 'Topic already exists',
-      }
-    }
-    const team = await createTeam(teamName.toString(), description.toString())
+    // if (await topicAlreadyExists(topicName)) {
+    //   return {
+    //     topicNameError: 'Topic already exists',
+    //   }
+    // }
+    const team = await createTeam(
+      teamName.toString(),
+      description.toString(),
+      topicName,
+      false
+    )
     await addUserToTeam(user, team.teamId, 'admin')
+    await createTeamAcls(user, team.teamId)
     return redirect(`/user/teams/edit?teamId=${team.teamId}`)
   }
 
@@ -114,8 +123,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
     teamId: '',
     teamName: '',
     description: '',
+    topic: '',
+    isPublic: false,
   }
-  let members = []
+  let members: (UserMetadata & { permission: string })[] = []
   if (teamId !== undefined) {
     team = await getTeam(teamId)
     members = await getUsersByTeamId(teamId)
@@ -244,9 +255,9 @@ export default function () {
           {members.map((user) => (
             <UserPermissionCard
               key={user.sub}
-              name={user.name}
+              name={user.username ?? ''}
               sub={user.sub}
-              affiliation={user.affiliation}
+              affiliation={user.affiliation ?? ''}
               permission={user.permission}
             />
           ))}

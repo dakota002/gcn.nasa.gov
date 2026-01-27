@@ -8,6 +8,7 @@
 import { tables } from '@architect/functions'
 import crypto from 'crypto'
 
+import type { UserMetadata } from './user.server'
 import type { User } from '~/routes/_auth/user.server'
 
 export type Team = {
@@ -15,6 +16,7 @@ export type Team = {
   teamName: string
   description: string
   topic: string
+  isPublic: boolean
 }
 
 export type TeamMember = {
@@ -26,7 +28,8 @@ export type TeamMember = {
 export async function createTeam(
   name: string,
   description: string,
-  topic: string
+  topic: string,
+  isPublic: boolean
 ) {
   const db = await tables()
 
@@ -35,6 +38,7 @@ export async function createTeam(
     teamName: name,
     description,
     topic,
+    isPublic,
   }
   await db.teams.put(team)
   return team
@@ -81,7 +85,17 @@ export async function getUsersByTeamId(teamId: string) {
       ':teamId': teamId,
     },
   })
-  return Items as TeamMember[]
+
+  const members = await Promise.all(
+    Items.map((user) => {
+      return {
+        permission: user.permission,
+        ...db.users.get({ sub: user.sub }),
+      }
+    })
+  )
+
+  return members as (UserMetadata & { permission: string })[]
 }
 
 export async function teamNameAlreadyExists(
@@ -122,7 +136,7 @@ export async function removeUserFromTeam(sub: string, teamId: string) {
   await db.team_members.delete({ sub, teamId })
 }
 
-export async function getTeam(teamId: string) {
+export async function getTeam(teamId: string): Promise<Team> {
   const db = await tables()
   return await db.teams.get({ teamId })
 }
@@ -140,4 +154,17 @@ export async function getTeamsByUserId(sub: string) {
   })
 
   return await Promise.all(Items.map((x) => db.teams.get({ teamId: x.teamId })))
+}
+
+export async function userIsTeamAdmin(
+  sub: string,
+  teamId: string
+): Promise<boolean> {
+  const db = await tables()
+  const membership = await db.team_members.get({
+    sub,
+    teamId,
+  })
+
+  return membership && membership.permission === 'admin'
 }
