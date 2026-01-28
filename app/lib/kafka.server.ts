@@ -27,8 +27,6 @@ export type KafkaACL = AclEntry & {
 
 export type UserClientType = 'producer' | 'consumer'
 
-export const adminGroup = 'admin:gcn.nasa.gov'
-
 const operations = {
   read: [AclOperationTypes.READ, AclOperationTypes.DESCRIBE],
   write: [
@@ -38,12 +36,6 @@ const operations = {
     AclOperationTypes.DESCRIBE,
   ],
 }
-
-// export const consumerOperations = [
-//   AclOperationTypes.READ,
-//   AclOperationTypes.DESCRIBE,
-// ]
-// export const producerOperations =
 
 const resourceTypes = [
   ResourcePatternTypes.LITERAL,
@@ -145,14 +137,15 @@ export async function createTeamAcls(user: User, teamId: string) {
   const team = await getTeam(teamId)
   if (!team) throw new Response(null, { status: 500 })
 
-  // const adminClient = adminKafka.admin()
-  // await adminClient.connect()
+  const adminClient = adminKafka.admin()
+  await adminClient.connect()
   const formattedTeamName = team.teamName.toLowerCase().replaceAll(' ', '_')
   const consumerAcls = buildAcls(team.topic, formattedTeamName, 'read')
+  if (team.isPublic) {
+    consumerAcls.push(...buildAcls(team.topic, 'public', 'read'))
+  }
   const producerAcls = buildAcls(team.topic, formattedTeamName, 'write')
-  console.log('Consumer acls: ', consumerAcls)
-  console.log('Producer acls: ', producerAcls)
-  // await adminClient.createAcls({ acl: [...consumerAcls, ...producerAcls] })
+  await adminClient.createAcls({ acl: [...consumerAcls, ...producerAcls] })
 }
 
 // This function may be obsolete
@@ -204,95 +197,3 @@ function buildAcls(
     })
   )
 }
-
-// function buildWriteAcls(topic: string, formattedTeamName: string) {
-//   return resourceTypes.flatMap((type) =>
-//     producerOperations.map((operation) => {
-//       return {
-//         resourceType: AclResourceTypes.TOPIC,
-//         resourceName: topic,
-//         resourcePatternType: type,
-//         principal: `write:${formattedTeamName}`,
-//         host: '*',
-//         operation,
-//         permissionType: AclPermissionTypes.ALLOW,
-//       }
-//     })
-//   )
-//   // return [
-//   //   // Literal
-//   //   {
-//   //     resourceType: AclResourceTypes.TOPIC,
-//   //     resourceName: topic,
-//   //     resourcePatternType: ResourcePatternTypes.LITERAL,
-//   //     principal: `write:${team.teamName.toLowerCase().replace(' ', '_')}`,
-//   //     host: '*',
-//   //     operation: AclOperationTypes.CREATE,
-//   //     permissionType: AclPermissionTypes.ALLOW,
-//   //   },
-//   //   {
-//   //     resourceType: AclResourceTypes.TOPIC,
-//   //     resourceName: team.topic,
-//   //     resourcePatternType: ResourcePatternTypes.LITERAL,
-//   //     principal: `write:${team.teamName.toLowerCase().replace(' ', '_')}`,
-//   //     host: '*',
-//   //     operation: AclOperationTypes.READ,
-//   //     permissionType: AclPermissionTypes.ALLOW,
-//   //   },
-//   //   {
-//   //     resourceType: AclResourceTypes.TOPIC,
-//   //     resourceName: team.topic,
-//   //     resourcePatternType: ResourcePatternTypes.LITERAL,
-//   //     principal: `write:${team.teamName.toLowerCase().replace(' ', '_')}`,
-//   //     host: '*',
-//   //     operation: AclOperationTypes.WRITE,
-//   //     permissionType: AclPermissionTypes.ALLOW,
-//   //   },
-//   //   {
-//   //     resourceType: AclResourceTypes.TOPIC,
-//   //     resourceName: team.topic,
-//   //     resourcePatternType: ResourcePatternTypes.LITERAL,
-//   //     principal: `write:${team.teamName.toLowerCase().replace(' ', '_')}`,
-//   //     host: '*',
-//   //     operation: AclOperationTypes.DESCRIBE,
-//   //     permissionType: AclPermissionTypes.ALLOW,
-//   //   },
-//   //   // Prefixed
-//   //   {
-//   //     resourceType: AclResourceTypes.TOPIC,
-//   //     resourceName: `${team.topic}.`,
-//   //     resourcePatternType: ResourcePatternTypes.PREFIXED,
-//   //     principal: `write:${team.teamName.toLowerCase().replace(' ', '_')}`,
-//   //     host: '*',
-//   //     operation: AclOperationTypes.CREATE,
-//   //     permissionType: AclPermissionTypes.ALLOW,
-//   //   },
-//   //   {
-//   //     resourceType: AclResourceTypes.TOPIC,
-//   //     resourceName: `${team.topic}.`,
-//   //     resourcePatternType: ResourcePatternTypes.PREFIXED,
-//   //     principal: `write:${team.teamName.toLowerCase().replace(' ', '_')}`,
-//   //     host: '*',
-//   //     operation: AclOperationTypes.READ,
-//   //     permissionType: AclPermissionTypes.ALLOW,
-//   //   },
-//   //   {
-//   //     resourceType: AclResourceTypes.TOPIC,
-//   //     resourceName: `${team.topic}.`,
-//   //     resourcePatternType: ResourcePatternTypes.PREFIXED,
-//   //     principal: `write:${team.teamName.toLowerCase().replace(' ', '_')}`,
-//   //     host: '*',
-//   //     operation: AclOperationTypes.WRITE,
-//   //     permissionType: AclPermissionTypes.ALLOW,
-//   //   },
-//   //   {
-//   //     resourceType: AclResourceTypes.TOPIC,
-//   //     resourceName: `${team.topic}.`,
-//   //     resourcePatternType: ResourcePatternTypes.PREFIXED,
-//   //     principal: `write:${team.teamName.toLowerCase().replace(' ', '_')}`,
-//   //     host: '*',
-//   //     operation: AclOperationTypes.DESCRIBE,
-//   //     permissionType: AclPermissionTypes.ALLOW,
-//   //   },
-//   // ]
-// }
