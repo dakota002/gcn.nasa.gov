@@ -40,6 +40,7 @@ import { createTeamAcls } from '~/lib/kafka.server'
 import {
   type Team,
   addUserToTeam,
+  checkTopicIsValid,
   createTeam,
   editTeam,
   getTeam,
@@ -70,11 +71,11 @@ export async function action({ request }: ActionFunctionArgs) {
     const topicName = getFormDataString(data, 'topic')
     console.log(topicName)
     if (!topicName) return new Response(null, { status: 400 })
-    // if (await topicAlreadyExists(topicName)) {
-    //   return {
-    //     topicNameError: 'Topic already exists',
-    //   }
-    // }
+    if (!(await checkTopicIsValid(topicName))) {
+      return {
+        topicNameError: 'Topic already exists',
+      }
+    }
     const team = await createTeam(
       teamName.toString(),
       description.toString(),
@@ -196,6 +197,15 @@ export default function () {
         </div>
         <Label htmlFor="topic">Topic</Label>
         <TextInput id="topic" name="topic" value={topicName} type="text" />
+        {actionResults?.error && (
+          <span className="text-red">{actionResults.error}</span>
+        )}
+        <div className="text-base margin-bottom-1" id="nameDescription">
+          <small>
+            Your team name will be parsed to create your topics. Spaces will be
+            replaced with underscores.
+          </small>
+        </div>
         <Label htmlFor="description">Description</Label>
         <TextInput
           id="description"

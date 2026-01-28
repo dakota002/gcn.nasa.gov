@@ -168,3 +168,15 @@ export async function userIsTeamAdmin(
 
   return membership && membership.permission === 'admin'
 }
+
+export async function checkTopicIsValid(topic: string): Promise<boolean> {
+  const db = await tables()
+  const team = await db.teams.query({
+    IndexName: 'teamsByTopic',
+    KeyConditionExpression: 'topic = :topic',
+    ExpressionAttributeValues: {
+      ':topic': topic,
+    },
+  })
+  return !team
+}

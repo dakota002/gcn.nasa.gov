@@ -194,6 +194,10 @@ teams
   teamName *String
   name teamsByName 
 
+teams
+  topic *String
+  name teamsByTopic
+
 @aws
 runtime nodejs24.x
 region us-east-1
