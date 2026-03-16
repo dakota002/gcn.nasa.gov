@@ -8,6 +8,7 @@
 import { tables } from '@architect/functions'
 import crypto from 'crypto'
 
+import type { UserMetadata } from './user.server'
 import type { User } from '~/routes/_auth/user.server'
 
 export type Team = {
@@ -15,6 +16,7 @@ export type Team = {
   teamName: string
   description: string
   topic: string
+  isPublic: boolean
 }
 
 export type TeamMember = {
@@ -26,7 +28,8 @@ export type TeamMember = {
 export async function createTeam(
   name: string,
   description: string,
-  topic: string
+  topic: string,
+  isPublic: boolean
 ) {
   const db = await tables()
 
@@ -35,6 +38,7 @@ export async function createTeam(
     teamName: name,
     description,
     topic,
+    isPublic,
   }
   await db.teams.put(team)
   return team
@@ -81,10 +85,104 @@ export async function getUsersByTeamId(teamId: string) {
       ':teamId': teamId,
     },
   })
-  return Items as TeamMember[]
+
+  const members = await Promise.all(
+    Items.map((user) => {
+      return {
+        permission: user.permission,
+        ...db.users.get({ sub: user.sub }),
+      }
+    })
+  )
+
+  return members as (UserMetadata & { permission: string })[]
+}
+
+export async function teamNameAlreadyExists(
+  teamName: string
+): Promise<Boolean> {
+  const db = await tables()
+  return (
+    (
+      await db.teams.query({
+        IndexName: 'teamsByName',
+        KeyConditionExpression: 'teamName = :teamName',
+        ExpressionAttributeValues: {
+          ':teamName': teamName,
+        },
+      })
+    ).Items.length > 0
+  )
+}
+
+export async function editTeam(
+  teamId: string,
+  teamName: string,
+  description: string,
+  isPublic: boolean
+) {
+  const db = await tables()
+  await db.teams.update({
+    Key: { teamId },
+    UpdateExpression:
+      'set teamName = :teamName, description = :description, isPublic = :isPublic',
+    ExpressionAttributeValues: {
+      ':teamName': teamName,
+      ':description': description,
+      ':isPublic': isPublic,
+    },
+  })
 }
 
 export async function removeUserFromTeam(sub: string, teamId: string) {
   const db = await tables()
   await db.team_members.delete({ sub, teamId })
+}
+
+export async function getTeam(teamId: string): Promise<Team> {
+  const db = await tables()
+  return await db.teams.get({ teamId })
+}
+
+export async function getTeamsByUserId(sub: string) {
+  const db = await tables()
+  const { Items } = await db.team_members.query({
+    KeyConditionExpression: '#sub = :sub',
+    ExpressionAttributeNames: {
+      '#sub': 'sub',
+    },
+    ExpressionAttributeValues: {
+      ':sub': sub,
+    },
+  })
+
+  return await Promise.all(Items.map((x) => db.teams.get({ teamId: x.teamId })))
+}
+
+export async function userIsTeamAdmin(
+  sub: string,
+  teamId: string
+): Promise<boolean> {
+  const db = await tables()
+  const membership = await db.team_members.get({
+    sub,
+    teamId,
+  })
+
+  return membership && membership.permission === 'admin'
+}
+
+export async function topicExists(topic: string): Promise<boolean> {
+  const db = await tables()
+  return (
+    (
+      await db.teams.query({
+        IndexName: 'teamsByTopic',
+        KeyConditionExpression: 'topic = :topic',
+        ExpressionAttributeValues: {
+          ':topic': topic,
+        },
+      })
+    ).Items.length > 0
+  )
 }

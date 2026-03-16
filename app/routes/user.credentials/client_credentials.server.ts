@@ -258,7 +258,7 @@ export async function createClientCredential(
     })
 
   const team = (await db.teams.get({ teamId })) as Team
-  const scope = `${membership.permission}:${team.teamName}`
+  const scope = `${membership.permission}:${team.teamName.toLowerCase().replaceAll(' ', '_')}`
   const { client_id, client_secret } =
     await createClientCredentialInternal(scope)
   const created = Date.now()

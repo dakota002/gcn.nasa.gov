@@ -5,10 +5,12 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-import { Form, Link, useSearchParams } from '@remix-run/react'
+import type { LoaderFunctionArgs } from '@remix-run/node'
+import { Form, Link, useLoaderData, useSearchParams } from '@remix-run/react'
 import { Button, ButtonGroup, FormGroup, Label } from '@trussworks/react-uswds'
 import { useState } from 'react'
 
+import { getUser } from './_auth/user.server'
 import type { NoticeFormat } from '~/components/NoticeFormat'
 import { NoticeFormatInput } from '~/components/NoticeFormat'
 import { NoticeTypeCheckboxes } from '~/components/NoticeTypeCheckboxes/NoticeTypeCheckboxes'
@@ -20,8 +22,21 @@ export const handle: BreadcrumbHandle & SEOHandle = {
   noIndex: true,
 }
 
+export async function loader({ request }: LoaderFunctionArgs) {
+  const user = await getUser(request)
+  const url = new URL(request.url)
+  const clientId = url.searchParams.get('clientId')
+  console.log('Sub: ', user?.sub)
+  console.log('clientId', clientId)
+  return {
+    topics: ['one'],
+  }
+}
+
 export default function () {
   const [params] = useSearchParams()
+  const { topics } = useLoaderData<typeof loader>()
+  console.log(topics)
   const alerts = params.getAll('alerts') || undefined
   const [alertsValid, setAlertsValid] = useState(false)
   const clientId = params.get('clientId') || undefined

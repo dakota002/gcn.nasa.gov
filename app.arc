@@ -186,6 +186,18 @@ team_members
   teamId *String
   name usersByTeam
 
+teams
+  sub *String
+  name teamsByUser
+
+teams
+  teamName *String
+  name teamsByName 
+
+teams
+  topic *String
+  name teamsByTopic
+
 @aws
 runtime nodejs24.x
 region us-east-1
