@@ -222,3 +222,4 @@ email-incoming  # Enable Lambda handlers for incoming emails
 nasa-gcn/architect-plugin-search  # Add an AWS OpenSearch Serverless collection.
 nasa-gcn/architect-plugin-dynamodb-local
 eventbridge # Enable sending Eventbridge Events to lambdas
+circulars-producer-client
