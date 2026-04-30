@@ -87,13 +87,8 @@ export async function createTeam(
     description,
   }
   await db.teams.put(team)
-  const topic: Topic = {
-    topicId: crypto.randomUUID(),
-    topicName,
-    public: false,
-    teamId: team.teamId,
-  }
-  await db.topics.put(topic)
+  const topic = await createTopic(topicName, team.teamId)
+  // TODO: Add KafkaACL functions here once they are created
   await db.team_invites.put({
     teamId: team.teamId,
     email: pocEmail,
@@ -150,6 +145,26 @@ export async function getTeamInvites(teamId: string) {
   ).Items as TeamInvite[]
 }
 
+export async function getUsersTeams(sub: string) {
+  const db = await tables()
+  const memberships: TeamMember[] = (
+    await db.team_members.query({
+      KeyConditionExpression: '#sub = :sub',
+      ExpressionAttributeNames: {
+        '#sub': 'sub',
+      },
+      ExpressionAttributeValues: {
+        ':sub': sub,
+      },
+    })
+  ).Items
+
+  const teams: Team[] = await Promise.all(
+    memberships.map((x) => db.teams.get({ teamId: x.teamId }))
+  )
+  return teams
+}
+
 export async function updateTeam(
   teamId: string,
   teamName: string,
@@ -183,6 +198,19 @@ export async function deleteTeam(teamId: string) {
       db.team_invites.delete({ teamId, email: x.email })
     ),
   ])
+}
+
+export async function userIsTeamAdmin(
+  sub: string,
+  teamId: string
+): Promise<boolean> {
+  const db = await tables()
+  const membership = await db.team_members.get({
+    sub,
+    teamId,
+  })
+
+  return membership && membership.permission === 'admin'
 }
 
 export async function inviteUserToTeam(
@@ -272,3 +300,42 @@ export async function removeUserFromTeam(sub: string, teamId: string) {
   const db = await tables()
   await db.team_members.delete({ sub, teamId })
 }
+
+// #region Topic Functions
+
+export async function createTopic(topicName: string, teamId: string) {
+  const db = await tables()
+  const topic: Topic = {
+    topicId: crypto.randomUUID(),
+    topicName,
+    public: false,
+    teamId,
+  }
+  await db.topics.put(topic)
+  return topic
+}
+
+export async function getTopic(topicId: string): Promise<Topic> {
+  const db = await tables()
+  return await db.topics.get({ topicId })
+}
+
+export async function updateTopicPublicAvailability(
+  topicId: string,
+  isPublic: boolean
+) {
+  // TODO: Add KafkaACL functions once they are created
+  const db = await tables()
+  await db.topics.update({
+    Key: { topicId },
+    UpdateExpression: 'set #public = :public',
+    ExpressionAttributeNames: {
+      '#public': 'public',
+    },
+    ExpressionAttributeValues: {
+      ':public': isPublic,
+    },
+  })
+}
+
+// #endregion
