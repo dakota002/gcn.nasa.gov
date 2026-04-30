@@ -324,7 +324,7 @@ export async function updateTopicPublicAvailability(
   topicId: string,
   isPublic: boolean
 ) {
-  // TODO: Add KafkaACL functions once they are created
+  // TODO: Add KafkaACL function to add public rule
   const db = await tables()
   await db.topics.update({
     Key: { topicId },
@@ -336,6 +336,26 @@ export async function updateTopicPublicAvailability(
       ':public': isPublic,
     },
   })
+}
+
+export async function deleteTopic(topicId: string) {
+  const db = await tables()
+  await db.topics.delete({ topicId })
+  const memberships: TeamMember[] = (
+    await db.team_members.query({
+      IndexName: 'membersByTopicId',
+      KeyConditionExpression: 'topicId = :topicId',
+      ExpressionAttributeValues: {
+        ':topicId': topicId,
+      },
+    })
+  ).Items
+  await Promise.all(
+    memberships.map((x) =>
+      db.team_members.delete({ sub: x.sub, teamId: x.teamId })
+    )
+  )
+  // TODO: Add KafkaACL function here to remove rules for this topic
 }
 
 // #endregion

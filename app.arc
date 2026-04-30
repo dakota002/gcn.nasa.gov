@@ -195,6 +195,10 @@ team_members
   teamId *String
   name usersByTeam
 
+team_members
+  topicId *String
+  name membersByTopicId
+
 team_invites
   email *String
   name invitesByEmail
