@@ -58,6 +58,7 @@ export async function action({ request }: ActionFunctionArgs) {
   if (!user) throw new Response(undefined, { status: 403 })
   const data = await request.formData()
   const intent = getFormDataString(data, 'intent')
+  const endorserEmail = getFormDataString(data, 'endorserEmail')
   const endorserSub = getFormDataString(data, 'endorserSub')
   const requestorSub = getFormDataString(data, 'requestorSub')
   const filter = getFormDataString(data, 'filter')
@@ -65,9 +66,9 @@ export async function action({ request }: ActionFunctionArgs) {
 
   switch (intent) {
     case 'create':
-      if (!endorserSub)
+      if (!endorserEmail)
         throw new Response('Valid endorser is required', { status: 403 })
-      await createEndorsementRequest(user, endorserSub, note)
+      await createEndorsementRequest(user, endorserEmail, note)
       break
     case 'approved':
     case 'rejected':
@@ -362,7 +363,7 @@ interface EndorsementComboBoxHandle {
 
 export function EndorsementRequestForm() {
   const ref = useRef<EndorsementComboBoxHandle>(null)
-  const [endorserSub, setEndorserSub] = useState('')
+  const [endorserEmail, setEndorserEmail] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const fetcher = useFetcher()
 
@@ -375,7 +376,7 @@ export function EndorsementRequestForm() {
 
   return (
     <fetcher.Form method="POST" onSubmit={() => setSubmitting(true)}>
-      <input type="hidden" name="endorserSub" value={endorserSub} />
+      <input type="hidden" name="endorserEmail" value={endorserEmail} />
       <Grid row>
         <Grid col="fill">
           <Label htmlFor="endorserSubSelect" className="usa-sr-only">
@@ -386,7 +387,7 @@ export function EndorsementRequestForm() {
             className="maxw-full"
             disabled={submitting}
             onSelectedItemChange={({ selectedItem }) =>
-              setEndorserSub(selectedItem?.sub ?? '')
+              setEndorserEmail(selectedItem?.email ?? '')
             }
           />
         </Grid>
@@ -405,7 +406,7 @@ export function EndorsementRequestForm() {
             type="submit"
             name="intent"
             value="create"
-            disabled={submitting || !endorserSub}
+            disabled={submitting || !endorserEmail}
             className="margin-top-1 tablet:margin-left-1 tablet:margin-right-0"
           >
             {submitting ? 'Requesting...' : 'Request'}

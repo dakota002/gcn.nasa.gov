@@ -34,7 +34,6 @@ export async function action({ request }: ActionFunctionArgs) {
       users = (await listUsersInGroup(groupFilter))
         .map((x) => {
           return {
-            sub: x.Attributes?.find((x) => x.Name == 'sub')?.Value,
             email: x.Attributes?.find((x) => x.Name == 'email')?.Value ?? '',
             name: x.Attributes?.find((x) => x.Name == 'name')?.Value,
             affiliation: x.Attributes?.find((x) => x.Name == 'affiliation')

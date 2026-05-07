@@ -18,7 +18,6 @@ import { formatAuthor } from '~/routes/circulars/circulars.lib'
 import loaderImage from 'nasawds/src/img/loader.gif'
 
 export interface UserLookup {
-  sub?: string
   email: string
   name?: string
   affiliation?: string
@@ -43,7 +42,6 @@ export function UserLookupComboBox({
   className,
   group,
   onChange,
-  // ref,
   ...props
 }: UserComboBoxProps & UserComboBoxHandle) {
   const fetcher = useFetcher<typeof action>()
@@ -151,12 +149,12 @@ export function UserLookupComboBox({
           (items.length ? (
             items.map((item, index) => (
               <li
-                key={item.sub}
+                key={formatAuthor(item)}
                 className={classnames('usa-combo-box__list-option', {
                   'usa-combo-box__list-option--focused':
                     index === highlightedIndex,
                   'usa-combo-box__list-option--selected':
-                    selectedItem?.sub === item.sub,
+                    selectedItem?.email === item.email,
                 })}
                 {...getItemProps({ item, index })}
               >

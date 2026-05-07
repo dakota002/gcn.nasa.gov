@@ -23,6 +23,7 @@ import {
   getCognitoUserFromSub,
   listUsersInGroup,
   maybeThrowCognito,
+  searchForUsersByKey,
 } from '~/lib/cognito.server'
 import { sendEmail } from '~/lib/email.server'
 import { origin } from '~/lib/env.server'
@@ -54,8 +55,56 @@ export interface EndorsementUser {
   affiliation?: string
 }
 
+async function getUsersInGroup(): Promise<EndorsementUser[]> {
+  let users
+  try {
+    users = await listUsersInGroup(submitterGroup)
+  } catch (error) {
+    maybeThrowCognito(error, 'returning fake users')
+    return [
+      {
+        sub: crypto.randomUUID(),
+        email: 'a.einstein@example.com',
+        name: 'Albert Einstein',
+      },
+      {
+        sub: crypto.randomUUID(),
+        email: 'c.sagan@example.com',
+        name: 'Carl Sagan',
+      },
+    ]
+  }
+
+  return users.map(({ Attributes }) => ({
+    sub: extractAttributeRequired(Attributes, 'sub'),
+    email: extractAttributeRequired(Attributes, 'email'),
+    name: extractAttribute(Attributes, 'name'),
+    affiliation: extractAttribute(Attributes, 'custom:affiliation'),
+  }))
+}
+
 function userIsSubmitter(user: User) {
   return user.groups.includes(submitterGroup)
+}
+
+/**
+ * Adds a user to the circulars submitters group
+ *
+ * Throws an HTTP error if:
+ *  - The provided sub does not correspond to an existing user
+ *
+ * @param sub - sub of another user
+ */
+async function addUserToGroup(sub: string) {
+  const { Username } = await getCognitoUserFromSub(sub)
+
+  await cognito.send(
+    new AdminAddUserToGroupCommand({
+      Username,
+      UserPoolId: process.env.COGNITO_USER_POOL_ID,
+      GroupName: submitterGroup,
+    })
+  )
 }
 
 /**
@@ -70,10 +119,10 @@ function userIsSubmitter(user: User) {
  */
 export async function createEndorsementRequest(
   user: User,
-  endorserSub: string,
+  endorserEmail: string,
   note: string
 ) {
-  if (endorserSub === user.sub)
+  if (endorserEmail === user.email)
     throw new Response(
       'Users cannot request themselves as the endorser of their own request',
       {
@@ -81,11 +130,15 @@ export async function createEndorsementRequest(
       }
     )
 
-  const endorsementUser = await getCognitoUserFromSub(endorserSub)
+  const endorsementUser = await searchForUsersByKey(endorserEmail, 'email', 1)
+  if (endorsementUser.length === 0)
+    throw new Response('Requested endorser email does not exist', {
+      status: 400,
+    })
 
   const { Groups } = await cognito.send(
     new AdminListGroupsForUserCommand({
-      Username: endorsementUser.Username,
+      Username: endorsementUser[0].Username,
       UserPoolId: process.env.COGNITO_USER_POOL_ID,
     })
   )
@@ -95,9 +148,9 @@ export async function createEndorsementRequest(
       status: 400,
     })
 
-  const endorserEmail = extractAttributeRequired(
-    endorsementUser.Attributes,
-    'email'
+  const endorserSub = extractAttributeRequired(
+    endorsementUser[0].Attributes,
+    'sub'
   )
 
   const db = await tables()
@@ -340,52 +393,4 @@ export async function getSubmitterUsers(user: User) {
   ])
 
   return users.filter(({ sub }) => !excludedSubs.has(sub))
-}
-
-/**
- * Adds a user to the circulars submitters group
- *
- * Throws an HTTP error if:
- *  - The provided sub does not correspond to an existing user
- *
- * @param sub - sub of another user
- */
-async function addUserToGroup(sub: string) {
-  const { Username } = await getCognitoUserFromSub(sub)
-
-  await cognito.send(
-    new AdminAddUserToGroupCommand({
-      Username,
-      UserPoolId: process.env.COGNITO_USER_POOL_ID,
-      GroupName: submitterGroup,
-    })
-  )
-}
-
-async function getUsersInGroup(): Promise<EndorsementUser[]> {
-  let users
-  try {
-    users = await listUsersInGroup(submitterGroup)
-  } catch (error) {
-    maybeThrowCognito(error, 'returning fake users')
-    return [
-      {
-        sub: crypto.randomUUID(),
-        email: 'a.einstein@example.com',
-        name: 'Albert Einstein',
-      },
-      {
-        sub: crypto.randomUUID(),
-        email: 'c.sagan@example.com',
-        name: 'Carl Sagan',
-      },
-    ]
-  }
-
-  return users.map(({ Attributes }) => ({
-    sub: extractAttributeRequired(Attributes, 'sub'),
-    email: extractAttributeRequired(Attributes, 'email'),
-    name: extractAttribute(Attributes, 'name'),
-    affiliation: extractAttribute(Attributes, 'custom:affiliation'),
-  }))
 }

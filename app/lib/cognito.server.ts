@@ -107,15 +107,17 @@ export async function listUsers(
   return Array.from(userMap)
 }
 
-async function searchForUsersByKey(
+export async function searchForUsersByKey(
   filterString: string,
-  filterKey: 'email' | 'name'
+  filterKey: 'email' | 'name',
+  limit?: number
 ) {
   const pages = paginateListUsers(
     { client: cognito },
     {
       UserPoolId,
       Filter: `${filterKey} ^= "${filterString}"`,
+      Limit: limit,
     }
   )
   const results = []
@@ -129,6 +131,26 @@ async function searchForUsersByKey(
       )
   }
   return results
+}
+
+export async function getSingleUserFromEmail(email: string) {
+  const matches = await searchForUsersByKey(email, 'email')
+  if (matches.length === 0)
+    throw new Response('Requested user does not exist', {
+      status: 400,
+    })
+  let user: UserType | undefined
+
+  if (matches.length > 1) {
+    user = matches.find(
+      (user) => !extractAttribute(user.Attributes, 'dev:custom:existingIdp')
+    )
+    if (!user) throw new Response(null, { status: 404 })
+  } else {
+    user = matches[0]
+  }
+
+  return user
 }
 
 export async function listUsersInGroup(GroupName: string) {
@@ -242,7 +264,6 @@ export async function getUserGroupStrings(Username: string) {
 
 export async function checkUserIsVerified(sub: string) {
   const { Username } = await getCognitoUserFromSub(sub)
-
   const { UserAttributes } = await cognito.send(
     new AdminGetUserCommand({
       UserPoolId,
