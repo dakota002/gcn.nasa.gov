@@ -18,11 +18,20 @@ import {
 import { useEffect, useRef, useState } from 'react'
 import { useResizeObserver } from 'usehooks-ts'
 
-import type { EndorsementRequest, EndorsementRole } from './endorsements.server'
-import { EndorsementsServer } from './endorsements.server'
+import { getUser } from '../_auth/user.server'
+import {
+  type EndorsementRequest,
+  type EndorsementRole,
+  createEndorsementRequest,
+  deleteEndorsementRequest,
+  getEndorsements,
+  getSubmitterUsers,
+  updateEndorsementRequestStatus,
+} from './endorsements.server'
 import SegmentedCards from '~/components/SegmentedCards'
 import { UserLookupComboBox } from '~/components/UserLookup'
 import { getFormDataString } from '~/lib/utils'
+import { usePermissionSubmitter } from '~/root'
 import type { BreadcrumbHandle } from '~/root/Title'
 import type { SEOHandle } from '~/root/seo'
 
@@ -32,24 +41,22 @@ export const handle: BreadcrumbHandle & SEOHandle = {
 }
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const endorsementServer = await EndorsementsServer.create(request)
+  const user = await getUser(request)
+  if (!user) throw new Response(undefined, { status: 403 })
   const [requestedEndorsements, awaitingEndorsements] = await Promise.all([
-    endorsementServer.getEndorsements('requestor'),
-    endorsementServer.getEndorsements('endorser'),
+    getEndorsements(user, 'requestor'),
+    getEndorsements(user, 'endorser'),
   ])
-  const userIsSubmitter = endorsementServer.userIsSubmitter()
   return {
     requestedEndorsements,
     awaitingEndorsements,
-    userIsSubmitter,
   }
 }
 
 export async function action({ request }: ActionFunctionArgs) {
-  const [data, endorsementServer] = await Promise.all([
-    request.formData(),
-    EndorsementsServer.create(request),
-  ])
+  const user = await getUser(request)
+  if (!user) throw new Response(undefined, { status: 403 })
+  const data = await request.formData()
   const intent = getFormDataString(data, 'intent')
   const endorserSub = getFormDataString(data, 'endorserSub')
   const requestorSub = getFormDataString(data, 'requestorSub')
@@ -60,26 +67,23 @@ export async function action({ request }: ActionFunctionArgs) {
     case 'create':
       if (!endorserSub)
         throw new Response('Valid endorser is required', { status: 403 })
-      await endorsementServer.createEndorsementRequest(endorserSub, note)
+      await createEndorsementRequest(user, endorserSub, note)
       break
     case 'approved':
     case 'rejected':
     case 'reported':
       if (!requestorSub)
         throw new Response('Valid requestor is required', { status: 403 })
-      await endorsementServer.updateEndorsementRequestStatus(
-        intent,
-        requestorSub
-      )
+      await updateEndorsementRequestStatus(user, intent, requestorSub)
       break
     case 'delete':
       if (!endorserSub)
         throw new Response('Valid endorser is required', { status: 403 })
-      await endorsementServer.deleteEndorsementRequest(endorserSub)
+      await deleteEndorsementRequest(user, endorserSub)
       break
     case 'filter':
       if (filter?.length) {
-        const submitters = (await endorsementServer.getSubmitterUsers())
+        const submitters = (await getSubmitterUsers(user))
           .filter(
             ({ name, email }) =>
               name?.includes(filter) || email.includes(filter)
@@ -97,8 +101,10 @@ export async function action({ request }: ActionFunctionArgs) {
 }
 
 export default function () {
-  const { awaitingEndorsements, requestedEndorsements, userIsSubmitter } =
+  const { awaitingEndorsements, requestedEndorsements } =
     useLoaderData<typeof loader>()
+
+  const userIsSubmitter = usePermissionSubmitter()
 
   return (
     <>
