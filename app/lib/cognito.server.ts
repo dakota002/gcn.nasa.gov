@@ -107,17 +107,15 @@ export async function listUsers(
   return Array.from(userMap)
 }
 
-export async function searchForUsersByKey(
+async function searchForUsersByKey(
   filterString: string,
-  filterKey: 'email' | 'name',
-  limit?: number
+  filterKey: 'email' | 'name'
 ) {
   const pages = paginateListUsers(
     { client: cognito },
     {
       UserPoolId,
       Filter: `${filterKey} ^= "${filterString}"`,
-      Limit: limit,
     }
   )
   const results = []
@@ -139,6 +137,7 @@ export async function getSingleUserFromEmail(email: string) {
     throw new Response('Requested user does not exist', {
       status: 400,
     })
+
   let user: UserType | undefined
 
   if (matches.length > 1) {
@@ -149,7 +148,6 @@ export async function getSingleUserFromEmail(email: string) {
   } else {
     user = matches[0]
   }
-
   return user
 }
 

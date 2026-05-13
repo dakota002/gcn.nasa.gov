@@ -21,9 +21,9 @@ import {
   extractAttribute,
   extractAttributeRequired,
   getCognitoUserFromSub,
+  getSingleUserFromEmail,
   listUsersInGroup,
   maybeThrowCognito,
-  searchForUsersByKey,
 } from '~/lib/cognito.server'
 import { sendEmail } from '~/lib/email.server'
 import { origin } from '~/lib/env.server'
@@ -55,56 +55,8 @@ export interface EndorsementUser {
   affiliation?: string
 }
 
-async function getUsersInGroup(): Promise<EndorsementUser[]> {
-  let users
-  try {
-    users = await listUsersInGroup(submitterGroup)
-  } catch (error) {
-    maybeThrowCognito(error, 'returning fake users')
-    return [
-      {
-        sub: crypto.randomUUID(),
-        email: 'a.einstein@example.com',
-        name: 'Albert Einstein',
-      },
-      {
-        sub: crypto.randomUUID(),
-        email: 'c.sagan@example.com',
-        name: 'Carl Sagan',
-      },
-    ]
-  }
-
-  return users.map(({ Attributes }) => ({
-    sub: extractAttributeRequired(Attributes, 'sub'),
-    email: extractAttributeRequired(Attributes, 'email'),
-    name: extractAttribute(Attributes, 'name'),
-    affiliation: extractAttribute(Attributes, 'custom:affiliation'),
-  }))
-}
-
 function userIsSubmitter(user: User) {
   return user.groups.includes(submitterGroup)
-}
-
-/**
- * Adds a user to the circulars submitters group
- *
- * Throws an HTTP error if:
- *  - The provided sub does not correspond to an existing user
- *
- * @param sub - sub of another user
- */
-async function addUserToGroup(sub: string) {
-  const { Username } = await getCognitoUserFromSub(sub)
-
-  await cognito.send(
-    new AdminAddUserToGroupCommand({
-      Username,
-      UserPoolId: process.env.COGNITO_USER_POOL_ID,
-      GroupName: submitterGroup,
-    })
-  )
 }
 
 /**
@@ -130,15 +82,11 @@ export async function createEndorsementRequest(
       }
     )
 
-  const endorsementUser = await searchForUsersByKey(endorserEmail, 'email', 1)
-  if (endorsementUser.length === 0)
-    throw new Response('Requested endorser email does not exist', {
-      status: 400,
-    })
+  const endorsementUser = await getSingleUserFromEmail(endorserEmail)
 
   const { Groups } = await cognito.send(
     new AdminListGroupsForUserCommand({
-      Username: endorsementUser[0].Username,
+      Username: endorsementUser.Username,
       UserPoolId: process.env.COGNITO_USER_POOL_ID,
     })
   )
@@ -149,7 +97,7 @@ export async function createEndorsementRequest(
     })
 
   const endorserSub = extractAttributeRequired(
-    endorsementUser[0].Attributes,
+    endorsementUser.Attributes,
     'sub'
   )
 
@@ -393,4 +341,52 @@ export async function getSubmitterUsers(user: User) {
   ])
 
   return users.filter(({ sub }) => !excludedSubs.has(sub))
+}
+
+/**
+ * Adds a user to the circulars submitters group
+ *
+ * Throws an HTTP error if:
+ *  - The provided sub does not correspond to an existing user
+ *
+ * @param sub - sub of another user
+ */
+async function addUserToGroup(sub: string) {
+  const { Username } = await getCognitoUserFromSub(sub)
+
+  await cognito.send(
+    new AdminAddUserToGroupCommand({
+      Username,
+      UserPoolId: process.env.COGNITO_USER_POOL_ID,
+      GroupName: submitterGroup,
+    })
+  )
+}
+
+async function getUsersInGroup(): Promise<EndorsementUser[]> {
+  let users
+  try {
+    users = await listUsersInGroup(submitterGroup)
+  } catch (error) {
+    maybeThrowCognito(error, 'returning fake users')
+    return [
+      {
+        sub: crypto.randomUUID(),
+        email: 'a.einstein@example.com',
+        name: 'Albert Einstein',
+      },
+      {
+        sub: crypto.randomUUID(),
+        email: 'c.sagan@example.com',
+        name: 'Carl Sagan',
+      },
+    ]
+  }
+
+  return users.map(({ Attributes }) => ({
+    sub: extractAttributeRequired(Attributes, 'sub'),
+    email: extractAttributeRequired(Attributes, 'email'),
+    name: extractAttribute(Attributes, 'name'),
+    affiliation: extractAttribute(Attributes, 'custom:affiliation'),
+  }))
 }
