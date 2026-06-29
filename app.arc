@@ -224,8 +224,8 @@ lambda-cognito-permissions  # Grant the Lambda function access to Cognito to run
 static-bucket-permissions  # Functions may only write to the /generated directory in the static bucket.
 email-outgoing  # Grant the Lambda function permission to send email; add email templates.
 email-incoming  # Enable Lambda handlers for incoming emails
-nasa-gcn/architect-plugin-search  # Add an AWS OpenSearch Serverless collection.
-nasa-gcn/architect-plugin-dynamodb-local
+# nasa-gcn/architect-plugin-search  # Add an AWS OpenSearch Serverless collection.
+# nasa-gcn/architect-plugin-dynamodb-local
 nasa-gcn/architect-plugin-tracing
 eventbridge # Enable sending Eventbridge Events to lambdas
 circulars-producer-client
