@@ -16,6 +16,7 @@ interface ZendeskRequest {
   requester: Requester
   subject: string
   comment: RequestComment
+  assignee_id?: number
 }
 
 interface Requester {
@@ -28,6 +29,7 @@ interface RequestComment {
 }
 
 const zendeskDomain = 'https://nasa-gcn.zendesk.com'
+export const ASSIGNEE_ID = Number(getEnvOrDie('ZENDESK_ASSIGNEE_ID'))
 
 const getAccessToken = memoizee(
   async () => {

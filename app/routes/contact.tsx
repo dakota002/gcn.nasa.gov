@@ -25,7 +25,7 @@ import { ReCAPTCHA, verifyRecaptcha } from '~/components/ReCAPTCHA'
 import { origin } from '~/lib/env.server'
 import { getCanonicalUrlHeaders, pickHeaders } from '~/lib/headers.server'
 import { getFormDataString } from '~/lib/utils'
-import { postZendeskRequest } from '~/lib/zendesk.server'
+import { ASSIGNEE_ID, postZendeskRequest } from '~/lib/zendesk.server'
 import { useEmail, useName, useRecaptchaSiteKey } from '~/root'
 import type { BreadcrumbHandle } from '~/root/Title'
 
@@ -55,11 +55,11 @@ export async function action({ request }: ActionFunctionArgs) {
       return result
     }
   )
-
   await postZendeskRequest({
     requester: { name, email },
     subject,
     comment: { body },
+    assignee_id: ASSIGNEE_ID,
   })
   return { email, subject }
 }

@@ -50,7 +50,7 @@ import PaginationSelectionFooter from '~/components/pagination/PaginationSelecti
 import { origin } from '~/lib/env.server'
 import { getCanonicalUrlHeaders } from '~/lib/headers.server'
 import { getFormDataString } from '~/lib/utils'
-import { postZendeskRequest } from '~/lib/zendesk.server'
+import { ASSIGNEE_ID, postZendeskRequest } from '~/lib/zendesk.server'
 import { usePermissionModerator } from '~/root'
 import { getUser } from '~/routes/_auth/user.server'
 import {
@@ -147,6 +147,7 @@ export async function action({ request }: ActionFunctionArgs) {
           comment: {
             body: `${name} has requested an edit. Review at ${origin}/circulars`,
           },
+          assignee_id: ASSIGNEE_ID,
         })
       }
 
