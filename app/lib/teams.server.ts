@@ -43,11 +43,22 @@ export type TeamMember = {
   permission: Permission
 }
 
+export type FullMemberInfo = TeamMember & {
+  email?: string
+  groups?: string[]
+  username?: string
+  affiliation?: string
+}
+
 export type TeamInvite = {
   teamId: string
   sub: string
   topicId: string
   permission: Permission
+}
+
+export type TeamInviteWithEmail = TeamInvite & {
+  email: string
 }
 
 export type Topic = {
@@ -124,9 +135,11 @@ export async function getTeam(teamId: string) {
   }
 }
 
-export async function getTeamMembers(teamId: string): Promise<TeamMember[]> {
+export async function getTeamMembers(
+  teamId: string
+): Promise<FullMemberInfo[]> {
   const db = await tables()
-  return (
+  const members = (
     await db.team_members.query({
       KeyConditionExpression: 'teamId = :teamId',
       IndexName: 'usersByTeam',
@@ -135,11 +148,30 @@ export async function getTeamMembers(teamId: string): Promise<TeamMember[]> {
       },
     })
   ).Items as TeamMember[]
+
+  const users: User[] = await Promise.all(
+    members.map((member) => db.users.get({ sub: member.sub }))
+  )
+  const userMap = new Map<string, User>(users.map((user) => [user.sub, user]))
+
+  const combined = members.map((member) => {
+    const user = userMap.get(member.sub)
+    const merged = {
+      ...user,
+      ...member,
+    }
+
+    const { cognitoUserName, idp, ...cleaned } = merged
+    return cleaned
+  })
+  return combined
 }
 
-export async function getTeamInvites(teamId: string) {
+export async function getTeamInvites(
+  teamId: string
+): Promise<TeamInviteWithEmail[]> {
   const db = await tables()
-  return (
+  const invites = (
     await db.team_invites.query({
       KeyConditionExpression: 'teamId = :teamId',
       ExpressionAttributeValues: {
@@ -147,8 +179,34 @@ export async function getTeamInvites(teamId: string) {
       },
     })
   ).Items as TeamInvite[]
+
+  return Promise.all(
+    invites.map(async (invite) => ({
+      ...invite,
+      email: ((await db.users.get({ sub: invite.sub })) as UserMetadata).email,
+    }))
+  )
 }
 
+export async function getTeamTopics(teamId: string) {
+  const db = await tables()
+  return (
+    await db.topics.query({
+      IndexName: 'topicsByTeamId',
+      KeyConditionExpression: 'teamId = :teamId',
+      ExpressionAttributeValues: {
+        ':teamId': teamId,
+      },
+    })
+  ).Items as Topic[]
+}
+
+/**
+ *
+ * @param sub - User's ID
+ * @returns An array of team items containing the team' name, description,
+ * and ID for each Team which a user belongs to
+ */
 export async function getUsersTeams(sub: string) {
   const db = await tables()
   const memberships: TeamMember[] = (
@@ -237,16 +295,11 @@ export async function inviteUserToTeam(
   user: User,
   teamId: string,
   newUserSub: string,
-  topicId: string,
+  // topicId: string,
   permission: Permission
 ) {
+  console.log('inviteUserToTeam', { user, teamId, newUserSub, permission })
   const db = await tables()
-  const userPermission = (await db.team_members.get({
-    teamId,
-    sub: user.sub,
-  })) as TeamMember
-  if (userPermission.permission != 'admin')
-    throw new Response(null, { status: 403 })
   const team = (await db.teams.get({ teamId })) as Team
   if (!team) throw new Response(null, { status: 404 })
 
@@ -258,7 +311,7 @@ export async function inviteUserToTeam(
     db.team_invites.put({
       teamId,
       sub: newUserSub,
-      topicId,
+      // topicId,
       permission,
     }),
     sendEmail({
@@ -274,49 +327,53 @@ export async function inviteUserToTeam(
 
 export async function getInvitesForUser(user: User) {
   const db = await tables()
-  return (
+  const invites = (
     await db.team_invites.query({
-      KeyConditionExpression: 'email = :email',
-      IndexName: 'invitesByEmail',
+      KeyConditionExpression: '#sub = :sub',
+      IndexName: 'invitesBySub',
+      ExpressionAttributeNames: {
+        '#sub': 'sub',
+      },
       ExpressionAttributeValues: {
-        ':email': user.email,
+        ':sub': user.sub,
       },
     })
   ).Items as TeamInvite[]
+
+  return Promise.all(
+    invites.map(async (invite) => ({
+      ...invite,
+      teamName: ((await db.teams.get({ teamId: invite.teamId })) as Team)
+        .teamName,
+    }))
+  )
 }
 
-export async function deleteTeamInvite(teamId: string, email: string) {
+export async function deleteTeamInvite(sub: string, teamId: string) {
   const db = await tables()
-  await db.team_invites.delete({ teamId, email })
+  await db.team_invites.delete({ teamId, sub })
 }
 
-export async function acceptTeamInvite(user: User, teamId: string) {
+export async function acceptTeamInvite(sub: string, teamId: string) {
   const db = await tables()
   const invite: TeamInvite = await db.team_invites.get({
     teamId,
-    email: user.email,
+    sub,
   })
   if (!invite) throw new Response(null, { status: 404 })
-  await setUsersTeamPermission(
-    user.sub,
-    teamId,
-    invite.topicId,
-    invite.permission
-  )
-  await deleteTeamInvite(teamId, user.email)
+  await setUsersTeamPermission(sub, teamId, invite.permission)
+  await deleteTeamInvite(sub, teamId)
 }
 
 export async function setUsersTeamPermission(
   sub: string,
   teamId: string,
-  topicId: string,
   permission: Permission
 ) {
   const db = await tables()
   await db.team_members.put({
     sub,
     teamId,
-    topicId,
     permission,
   })
 }
