@@ -43,6 +43,13 @@ export type TeamMember = {
   permission: Permission
 }
 
+export type FullMemberInfo = TeamMember & {
+  email?: string
+  groups?: string[]
+  name?: string
+  affiliation?: string
+}
+
 export type TeamInvite = {
   teamId: string
   sub: string
@@ -124,9 +131,11 @@ export async function getTeam(teamId: string) {
   }
 }
 
-export async function getTeamMembers(teamId: string): Promise<TeamMember[]> {
+export async function getTeamMembers(
+  teamId: string
+): Promise<FullMemberInfo[]> {
   const db = await tables()
-  return (
+  const members = (
     await db.team_members.query({
       KeyConditionExpression: 'teamId = :teamId',
       IndexName: 'usersByTeam',
@@ -135,6 +144,23 @@ export async function getTeamMembers(teamId: string): Promise<TeamMember[]> {
       },
     })
   ).Items as TeamMember[]
+
+  const users: User[] = await Promise.all(
+    members.map((member) => db.users.get({ sub: member.sub }))
+  )
+  const userMap = new Map<string, User>(users.map((user) => [user.sub, user]))
+
+  const combined = members.map((member) => {
+    const user = userMap.get(member.sub)
+    const merged = {
+      ...user,
+      ...member,
+    }
+
+    const { cognitoUserName, idp, ...cleaned } = merged
+    return cleaned
+  })
+  return combined
 }
 
 export async function getTeamInvites(teamId: string) {
@@ -149,6 +175,25 @@ export async function getTeamInvites(teamId: string) {
   ).Items as TeamInvite[]
 }
 
+export async function getTeamTopics(teamId: string) {
+  const db = await tables()
+  return (
+    await db.topics.query({
+      IndexName: 'topicsByTeamId',
+      KeyConditionExpression: 'teamId = :teamId',
+      ExpressionAttributeValues: {
+        ':teamId': teamId,
+      },
+    })
+  ).Items as Topic[]
+}
+
+/**
+ *
+ * @param sub - User's ID
+ * @returns An array of team items containing the team' name, description,
+ * and ID for each Team which a user belongs to
+ */
 export async function getUsersTeams(sub: string) {
   const db = await tables()
   const memberships: TeamMember[] = (
