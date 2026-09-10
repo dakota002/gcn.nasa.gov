@@ -18,7 +18,7 @@ import {
 } from '@trussworks/react-uswds'
 import { useRef } from 'react'
 
-import { getUser } from './_auth/user.server'
+import { getUser } from '../_auth/user.server'
 import SegmentedCards from '~/components/SegmentedCards'
 import { ToolbarButtonGroup } from '~/components/ToolbarButtonGroup'
 import type { Team, TeamInvite } from '~/lib/teams.server'
@@ -29,6 +29,7 @@ import {
   getUsersTeams,
 } from '~/lib/teams.server'
 import { getFormDataString } from '~/lib/utils'
+import { usePermissionAdmin } from '~/root'
 import type { SEOHandle } from '~/root/seo'
 
 export const handle: SEOHandle = { noIndex: true }
@@ -61,13 +62,21 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
 export default function () {
   const { teams, invites } = useLoaderData<typeof loader>()
+  const userIsAdmin = usePermissionAdmin()
   return (
     <>
       <h1>Teams</h1>
       <p>
         Teams are a groups of users who have access to specific Kafka Topics.
-        You will see Teams which you are in here.
+        New teams can only be created by an administrator as part of the Kafka
+        Producer onboarding process. If you do not see your team here, please{' '}
+        <Link to="/contact">contact us</Link>.
       </p>
+      {userIsAdmin && (
+        <Link to="/user/teams/new" className="usa-button usa-button--outline">
+          Create New Team
+        </Link>
+      )}
       <SegmentedCards>
         {teams.map((team) => (
           <TeamCard key={team.teamId} team={team} />

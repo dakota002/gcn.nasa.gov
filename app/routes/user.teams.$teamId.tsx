@@ -33,6 +33,7 @@ import type {
 import {
   deleteTeamInvite,
   getTeam,
+  getTeamMembership,
   getTeamTopics,
   inviteUserToTeam, // inviteUserToTeam,
   setUsersTeamPermission,
@@ -83,6 +84,8 @@ export async function loader({
   const user = await getUser(request)
   if (!user) throw new Response(null, { status: 403 })
   if (!teamId) throw new Response(null, { status: 404 })
+  const membership = await getTeamMembership(user.sub, teamId)
+  if (!membership) throw new Response(null, { status: 403 })
   const team = await getTeam(teamId)
   const teamAdmin = await userIsTeamAdmin(user.sub, teamId)
   const topics = await getTeamTopics(teamId)

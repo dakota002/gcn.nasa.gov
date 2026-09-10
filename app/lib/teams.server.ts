@@ -188,6 +188,7 @@ export async function getTeamInvites(
   )
 }
 
+// TODO: Rework teams-topic relation, teams get 1-1 association to topic spaces
 export async function getTeamTopics(teamId: string) {
   const db = await tables()
   return (
@@ -278,16 +279,19 @@ export async function deleteTeam(teamId: string) {
   })
 }
 
+export async function getTeamMembership(sub: string, teamId: string) {
+  const db = await tables()
+  return await db.team_members.get({
+    sub,
+    teamId,
+  })
+}
+
 export async function userIsTeamAdmin(
   sub: string,
   teamId: string
 ): Promise<boolean> {
-  const db = await tables()
-  const membership = await db.team_members.get({
-    sub,
-    teamId,
-  })
-
+  const membership = await getTeamMembership(sub, teamId)
   return membership && membership.permission === 'admin'
 }
 
@@ -450,6 +454,7 @@ export async function deleteTopic(topicId: string) {
   // TODO: Add KafkaACL function here to remove rules for this topic
 }
 
+// TODO: Does this still make sense? I dont think so
 export async function userHasPermission(
   sub: string,
   topicName: string,
