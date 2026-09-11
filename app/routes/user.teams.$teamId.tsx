@@ -38,7 +38,8 @@ import {
   getTeam,
   getTeamMembership,
   getTeamTopics,
-  inviteUserToTeam, // inviteUserToTeam,
+  inviteUserToTeam,
+  removeUserFromTeam, // inviteUserToTeam,
   setUsersTeamPermission,
   updateTeam,
   userIsTeamAdmin,
@@ -64,7 +65,10 @@ export async function action({
       if (!sub || !permission) throw new Response(null, { status: 400 })
       await setUsersTeamPermission(sub, teamId, permission as Permission)
       break
-    case 'remove':
+    case 'remove-user':
+      const userToRemove = getFormDataString(data, 'userToRemove')
+      if (!userToRemove) throw new Response(null, { status: 400 })
+      await removeUserFromTeam(userToRemove, teamId)
       break
     case 'invite-user':
       const inviteeSub = getFormDataString(data, 'inviteeSub')
@@ -180,14 +184,12 @@ export default function () {
         </p>
         {teamAdmin && (
           <>
+            <h3>Admin Note</h3>
             <p>
-              As an Admin of this team, you may edit details about the team.
-              This includes the name and description.
-            </p>
-            <p>
-              You may also manage the other users in this Team. This includes
+              As an Admin of this team, you may manage the other users in this
+              Team. This includes adding and removing users from the team,
               changing their permission to read or write to your teams available
-              topics, as well as to nominate another user as an Admin.
+              topics, and nominating another user as an Admin.
             </p>
           </>
         )}
@@ -332,21 +334,21 @@ function MemberCard({
         renderToPortal={false} // FIXME: https://github.com/trussworks/react-uswds/pull/1890#issuecomment-1023730448
       >
         <removeUserFetcher.Form method="POST">
-          <input type="hidden" name="sub" value={member.sub} />
-          <input type="hidden" name="intent" value="remove" />
+          <input type="hidden" name="userToRemove" value={member.sub} />
+          <input type="hidden" name="intent" value="remove-user" />
           <ModalHeading id="modal-delete-heading">
             Remove User From Team
           </ModalHeading>
           <p id="modal-delete-description">
-            Are you sure that you want to remove {member.sub} from this Team?
-            They can always be added back in the future by a Team Admin.
+            Are you sure that you want to remove {member.username} from this
+            Team? They can always be added back in the future by a Team Admin.
           </p>
           <ModalFooter>
             <ModalToggleButton modalRef={removeUserRef} closer outline>
               Cancel
             </ModalToggleButton>
             <Button data-close-modal type="submit">
-              Delete
+              Remove
             </Button>
           </ModalFooter>
         </removeUserFetcher.Form>

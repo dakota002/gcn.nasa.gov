@@ -384,6 +384,20 @@ export async function setUsersTeamPermission(
 
 export async function removeUserFromTeam(sub: string, teamId: string) {
   const db = await tables()
+  // Check that we are not about to delete the only team admin
+  const admins = (
+    await db.team_members.query({
+      IndexName: 'teamMembersByPermission',
+      FilterExpression: 'permission = :permission',
+      ExpressionAttributeValues: {
+        ':permission': 'admin',
+      },
+    })
+  ).Items as TeamMember[]
+  // So long as there is at least another admin, we may delete the user
+  if (!admins.some((user) => user.sub !== sub)) {
+    throw new Response(null, { status: 400 })
+  }
   await db.team_members.delete({ sub, teamId })
 }
 
