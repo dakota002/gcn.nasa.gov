@@ -6,10 +6,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import type { ActionFunctionArgs, LoaderFunctionArgs } from '@remix-run/node'
-import { Link, useFetcher, useLoaderData } from '@remix-run/react'
+import { useFetcher, useLoaderData } from '@remix-run/react'
 import type { ModalRef } from '@trussworks/react-uswds'
 import {
   Button,
+  ButtonGroup,
   Grid,
   Icon,
   Label,
@@ -18,11 +19,13 @@ import {
   ModalHeading,
   ModalToggleButton,
   Select,
+  Textarea,
 } from '@trussworks/react-uswds'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { getUser } from './_auth/user.server'
 import SegmentedCards from '~/components/SegmentedCards'
+import Spinner from '~/components/Spinner'
 import { ToolbarButtonGroup } from '~/components/ToolbarButtonGroup'
 import { UserLookupComboBox } from '~/components/UserLookup'
 import type {
@@ -37,6 +40,7 @@ import {
   getTeamTopics,
   inviteUserToTeam, // inviteUserToTeam,
   setUsersTeamPermission,
+  updateTeam,
   userIsTeamAdmin,
 } from '~/lib/teams.server'
 import { getFormDataString } from '~/lib/utils'
@@ -71,6 +75,10 @@ export async function action({
       if (!sub) throw new Response(null, { status: 400 })
       await deleteTeamInvite(sub, teamId)
       break
+    case 'update-description':
+      const description = getFormDataString(data, 'description')
+      if (!description) throw new Response(null, { status: 400 })
+      await updateTeam(teamId, description)
     default:
       break
   }
@@ -96,7 +104,18 @@ export default function () {
   const { team, teamAdmin, topics } = useLoaderData<typeof loader>()
   const inviteRef = useRef<ModalRef>(null)
   const inviteFetcher = useFetcher()
+  const descriptionFetcher = useFetcher()
+  const [editMode, setEditMode] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const [inviteeSub, setInviteeSub] = useState('')
+
+  useEffect(() => {
+    if (descriptionFetcher.state === 'idle' && submitting) {
+      setSubmitting(false)
+      setEditMode(false)
+    }
+  }, [descriptionFetcher.state, submitting])
+
   return (
     <>
       <Grid>
@@ -104,19 +123,60 @@ export default function () {
           <Grid tablet={{ col: 'fill' }}>
             <h1>{team.teamName}</h1>
           </Grid>
-          {teamAdmin && (
-            <Grid tablet={{ col: 'auto' }}>
-              <Link className="usa-button tablet:margin-right-2" to="edit">
-                <Icon.Edit role="presentation" className="margin-y-neg-2px" />
-                Edit
-              </Link>
-            </Grid>
-          )}
         </Grid>
-        <p>{team.description}</p>
+        <h3>
+          Description{' '}
+          {teamAdmin && !editMode && (
+            <Button type="button" unstyled onClick={() => setEditMode(true)}>
+              Edit <Icon.Edit />
+            </Button>
+          )}
+        </h3>
+        {editMode ? (
+          <descriptionFetcher.Form
+            method="POST"
+            onSubmit={() => setSubmitting(true)}
+          >
+            <input
+              type="hidden"
+              id="intent"
+              name="intent"
+              value="update-description"
+            />
+            <Textarea
+              name="description"
+              id="description"
+              defaultValue={team.description}
+              disabled={descriptionFetcher.state !== 'idle'}
+            />
+            <ButtonGroup>
+              <Button
+                type="button"
+                onClick={() => setEditMode(false)}
+                outline
+                disabled={submitting}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={submitting}>
+                Save Changes
+              </Button>
+              {submitting && (
+                <span className="text-middle">
+                  <Spinner />
+                </span>
+              )}
+            </ButtonGroup>
+          </descriptionFetcher.Form>
+        ) : (
+          <p>{team.description}</p>
+        )}
+
+        <h3>Topic</h3>
         <p>
-          Members of this team have permissions to read or write from the topic:{' '}
-          {topics.map((x) => x.topicName)}
+          Members of this team can generate Kafka Client Credentials with
+          permissions to read or write from topics starting with{' '}
+          <strong>{topics.map((x) => x.topicName)}</strong>.
         </p>
         {teamAdmin && (
           <>
@@ -137,22 +197,27 @@ export default function () {
             <MemberCard
               key={member.sub}
               member={member}
+              teamAdmin={teamAdmin}
               topic={topics.find((x) => x.topicId == member.topicId)?.topicName}
             />
           ))}
         </SegmentedCards>
-        <h3>Team Invites</h3>
-        <ModalToggleButton opener modalRef={inviteRef} type="button">
-          Invite
-        </ModalToggleButton>
-        {team.pendingInvites.length ? (
-          <SegmentedCards>
-            {team.pendingInvites.map((invite) => (
-              <InviteCard key={invite.sub} invite={invite} />
-            ))}
-          </SegmentedCards>
-        ) : (
-          <>No Pending Invites</>
+        {teamAdmin && (
+          <>
+            <h3>Team Invites</h3>
+            <ModalToggleButton opener modalRef={inviteRef} type="button">
+              Invite
+            </ModalToggleButton>
+            {team.pendingInvites.length ? (
+              <SegmentedCards>
+                {team.pendingInvites.map((invite) => (
+                  <InviteCard key={invite.sub} invite={invite} />
+                ))}
+              </SegmentedCards>
+            ) : (
+              <>No Pending Invites</>
+            )}
+          </>
         )}
       </Grid>
       <Modal
@@ -168,18 +233,16 @@ export default function () {
           <ModalHeading id="modal-invite-heading">
             Invite New Member to Team
           </ModalHeading>
-          <p id="modal-invite-description">
-            {/* Enter the user's email to invite them to join {team.teamName}. */}
-            <Label htmlFor="user">User</Label>
-            <UserLookupComboBox
-              id="user"
-              className="maxw-full"
-              onSelectedItemChange={({ selectedItem }) =>
-                setInviteeSub(selectedItem?.sub ?? '')
-              }
-            />
-            <PermissionSelector defaultPermission="read" />
-          </p>
+          {/* Enter the user's email to invite them to join {team.teamName}. */}
+          <Label htmlFor="user">User</Label>
+          <UserLookupComboBox
+            id="user"
+            className="maxw-full"
+            onSelectedItemChange={({ selectedItem }) =>
+              setInviteeSub(selectedItem?.sub ?? '')
+            }
+          />
+          <PermissionSelector defaultPermission="read" />
 
           <ModalFooter>
             <ModalToggleButton modalRef={inviteRef} closer outline>
@@ -198,8 +261,10 @@ export default function () {
 function MemberCard({
   member,
   topic,
+  teamAdmin,
 }: {
   member: FullMemberInfo
+  teamAdmin: Boolean
   topic?: string
 }) {
   const removeUserRef = useRef<ModalRef>(null)
@@ -236,26 +301,28 @@ function MemberCard({
             </small>
           </div>
         </div>
-        <div className="tablet:grid-col flex-auto margin-y-auto">
-          <ToolbarButtonGroup>
-            <ModalToggleButton
-              opener
-              modalRef={editPermissionRef}
-              type="button"
-            >
-              Edit
-            </ModalToggleButton>
-            <ModalToggleButton
-              opener
-              modalRef={removeUserRef}
-              type="button"
-              className="usa-button--secondary"
-            >
-              <Icon.Delete role="presentation" className="margin-y-neg-2px" />
-              Remove
-            </ModalToggleButton>
-          </ToolbarButtonGroup>
-        </div>
+        {teamAdmin && (
+          <div className="tablet:grid-col flex-auto margin-y-auto">
+            <ToolbarButtonGroup>
+              <ModalToggleButton
+                opener
+                modalRef={editPermissionRef}
+                type="button"
+              >
+                Edit
+              </ModalToggleButton>
+              <ModalToggleButton
+                opener
+                modalRef={removeUserRef}
+                type="button"
+                className="usa-button--secondary"
+              >
+                <Icon.Delete role="presentation" className="margin-y-neg-2px" />
+                Remove
+              </ModalToggleButton>
+            </ToolbarButtonGroup>
+          </div>
+        )}
       </Grid>
       <Modal
         id="modal-delete"

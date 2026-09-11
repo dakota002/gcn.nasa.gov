@@ -230,19 +230,19 @@ export async function getUsersTeams(sub: string) {
 
 export async function updateTeam(
   teamId: string,
-  teamName: string,
+  // teamName: string,
   description: string
 ) {
   const db = await tables()
   await db.teams.update({
     Key: { teamId },
-    UpdateExpression: 'set #teamName = :teamName, #description = :description',
+    UpdateExpression: 'set #description = :description',
     ExpressionAttributeNames: {
-      '#teamName': 'teamName',
+      // '#teamName': 'teamName',
       '#description': 'description',
     },
     ExpressionAttributeValues: {
-      ':teamName': teamName,
+      // ':teamName': teamName,
       ':description': description,
     },
   })
