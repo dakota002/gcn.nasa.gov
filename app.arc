@@ -226,17 +226,17 @@ team_members
   permission *String
   name teamMembersByPermission
 
-team_invites
-  sub *String
-  name invitesBySub
+#team_invites
+#  sub *String
+#  name invitesBySub
 
 topics 
   topicName *String
   name topicsByName
 
-topics
-  teamId *String
-  name topicsByTeamId
+#topics
+#  teamId *String
+#  name topicsByTeamId
 
 @aws
 runtime nodejs24.x

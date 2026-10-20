@@ -191,16 +191,17 @@ export async function getTeamInvites(
 
 // TODO: Rework teams-topic relation, teams get 1-1 association to topic spaces
 export async function getTeamTopics(teamId: string) {
-  const db = await tables()
-  return (
-    await db.topics.query({
-      IndexName: 'topicsByTeamId',
-      KeyConditionExpression: 'teamId = :teamId',
-      ExpressionAttributeValues: {
-        ':teamId': teamId,
-      },
-    })
-  ).Items as Topic[]
+  return []
+  // const db = await tables()
+  // return (
+  //   await db.topics.query({
+  //     IndexName: 'topicsByTeamId',
+  //     KeyConditionExpression: 'teamId = :teamId',
+  //     ExpressionAttributeValues: {
+  //       ':teamId': teamId,
+  //     },
+  //   })
+  // ).Items as Topic[]
 }
 
 /**
@@ -338,27 +339,36 @@ export async function inviteUserToTeam(
 }
 
 export async function getInvitesForUser(user: User) {
-  const db = await tables()
-  const invites = (
-    await db.team_invites.query({
-      KeyConditionExpression: '#sub = :sub',
-      IndexName: 'invitesBySub',
-      ExpressionAttributeNames: {
-        '#sub': 'sub',
-      },
-      ExpressionAttributeValues: {
-        ':sub': user.sub,
-      },
-    })
-  ).Items as TeamInvite[]
+  return [
+    {
+      teamName: 'Team Name',
+      teamId: 'teamId',
+      sub: '1234abcd5678efgh',
+      permission: 'read',
+    } as TeamInvite & { teamName: string },
+  ]
+  // TODO: Revert the commented out code when updates are finished.
+  // const db = await tables()
+  // const invites = (
+  //   await db.team_invites.query({
+  //     KeyConditionExpression: '#sub = :sub',
+  //     IndexName: 'invitesBySub',
+  //     ExpressionAttributeNames: {
+  //       '#sub': 'sub',
+  //     },
+  //     ExpressionAttributeValues: {
+  //       ':sub': user.sub,
+  //     },
+  //   })
+  // ).Items as TeamInvite[]
 
-  return Promise.all(
-    invites.map(async (invite) => ({
-      ...invite,
-      teamName: ((await db.teams.get({ teamId: invite.teamId })) as Team)
-        .teamName,
-    }))
-  )
+  // return Promise.all(
+  //   invites.map(async (invite) => ({
+  //     ...invite,
+  //     teamName: ((await db.teams.get({ teamId: invite.teamId })) as Team)
+  //       .teamName,
+  //   }))
+  // )
 }
 
 export async function deleteTeamInvite(sub: string, teamId: string) {
