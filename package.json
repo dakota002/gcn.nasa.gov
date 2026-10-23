@@ -62,7 +62,7 @@
     "mailparser": "^3.9.31",
     "memoizee": "^0.4.15",
     "nodemailer": "^10.0.12",
-    "openid-client": "^5.6.1",
+    "openid-client": "^6.8.8",
     "p-throttle": "^8.1.0",
     "pretty-bytes": "^6.1.1",
     "react": "^18.2.0",
